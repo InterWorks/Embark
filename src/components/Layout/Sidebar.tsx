@@ -172,6 +172,7 @@ export function Sidebar({ currentView, onViewChange, onSelectClient, isCollapsed
   const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [clientsOpen, setClientsOpen] = useLocalStorage('sidebar-clients-open', true);
   const { clients } = useClientContext();
   const { pinnedViews } = useSavedViews();
   const [favorites] = useLocalStorage<string[]>('favorite-clients', []);
@@ -228,6 +229,9 @@ export function Sidebar({ currentView, onViewChange, onSelectClient, isCollapsed
           <span className="embark-glow font-black text-xl tracking-tight font-display">Embark</span>
         )}
       </div>
+
+      {/* Scrollable middle zone */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
 
       {/* Navigation */}
       <nav className="p-2 border-b-2 border-zinc-700">
@@ -298,8 +302,8 @@ export function Sidebar({ currentView, onViewChange, onSelectClient, isCollapsed
         </div>
       )}
 
-      {/* Client Search (when expanded) */}
-      {!isCollapsed && (
+      {/* Client Search (when expanded and clients section open) */}
+      {!isCollapsed && clientsOpen && (
         <div className="p-3 border-b-2 border-zinc-700">
           <div className="relative">
             <svg
@@ -327,60 +331,95 @@ export function Sidebar({ currentView, onViewChange, onSelectClient, isCollapsed
       )}
 
       {/* Client List */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="p-2">
         {!isCollapsed ? (
           <>
-            {/* Favorites Section */}
-            {favoriteClients.length > 0 && !searchQuery && (
-              <div className="mb-4">
-                <div className="flex items-center gap-2 px-2 py-1 text-xs font-bold text-zinc-400 uppercase tracking-wide">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                  </svg>
-                  Favorites
-                </div>
-                {favoriteClients.map((client) => (
-                  <ClientItem
-                    key={client.id}
-                    client={client}
-                    onClick={() => {
-                      onSelectClient(client);
-                      onViewChange('clients');
-                    }}
-                    isFavorite
-                  />
-                ))}
-              </div>
-            )}
+            {/* Collapsible header */}
+            <button
+              onClick={() => setClientsOpen(!clientsOpen)}
+              className="w-full flex items-center justify-between px-2 py-1 mb-1 text-xs font-bold text-zinc-400 uppercase tracking-wide hover:text-zinc-200 transition-colors"
+            >
+              <span>Clients</span>
+              <svg
+                className={`w-3 h-3 transition-transform duration-200 ${clientsOpen ? '' : '-rotate-90'}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-            {/* All Clients */}
-            <div>
-              {!searchQuery && favoriteClients.length > 0 && (
-                <div className="px-2 py-1 text-xs font-bold text-zinc-400 uppercase tracking-wide">
-                  All Clients
-                </div>
-              )}
-              {(searchQuery ? filteredClients : nonFavoriteClients).length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-4">
-                  <div className="w-6 h-6 bg-yellow-400/60 clip-burst deco-float" />
-                  <p className="text-zinc-500 dark:text-zinc-400 text-xs text-center">
-                    {searchQuery ? 'No clients found' : 'No clients yet'}
-                  </p>
-                </div>
-              ) : (
-                (searchQuery ? filteredClients : nonFavoriteClients).map((client) => (
-                  <ClientItem
-                    key={client.id}
-                    client={client}
-                    onClick={() => {
-                      onSelectClient(client);
-                      onViewChange('clients');
-                    }}
-                    isFavorite={favorites.includes(client.id)}
-                  />
-                ))
-              )}
-            </div>
+            {clientsOpen && (
+              <>
+                {/* Favorites Section */}
+                {favoriteClients.length > 0 && !searchQuery && (
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2 px-2 py-1 text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                      Favorites
+                    </div>
+                    {favoriteClients.map((client) => (
+                      <ClientItem
+                        key={client.id}
+                        client={client}
+                        onClick={() => {
+                          onSelectClient(client);
+                          onViewChange('clients');
+                        }}
+                        isFavorite
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* All Clients */}
+                {(() => {
+                  const list = searchQuery ? filteredClients : nonFavoriteClients;
+                  const capped = !searchQuery && list.length > 5;
+                  const displayed = capped ? list.slice(0, 5) : list;
+                  return (
+                    <div>
+                      {!searchQuery && favoriteClients.length > 0 && (
+                        <div className="px-2 py-1 text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                          Recent
+                        </div>
+                      )}
+                      {list.length === 0 ? (
+                        <div className="flex flex-col items-center gap-2 py-4">
+                          <div className="w-6 h-6 bg-yellow-400/60 clip-burst deco-float" />
+                          <p className="text-zinc-500 text-xs text-center">
+                            {searchQuery ? 'No clients found' : 'No clients yet'}
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          {displayed.map((client) => (
+                            <ClientItem
+                              key={client.id}
+                              client={client}
+                              onClick={() => {
+                                onSelectClient(client);
+                                onViewChange('clients');
+                              }}
+                              isFavorite={favorites.includes(client.id)}
+                            />
+                          ))}
+                          {capped && (
+                            <button
+                              onClick={() => onViewChange('clients')}
+                              className="w-full text-left px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                            >
+                              +{list.length - 5} more — See all
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
           </>
         ) : (
           // Collapsed view - show client avatars
@@ -422,6 +461,8 @@ export function Sidebar({ currentView, onViewChange, onSelectClient, isCollapsed
           compact
         />
       )}
+
+      </div>{/* end scrollable middle zone */}
 
       {/* User Avatar Chip */}
       {currentUser && (
