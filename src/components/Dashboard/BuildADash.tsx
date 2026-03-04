@@ -22,6 +22,8 @@ const WIDGETS: WidgetMeta[] = [
   { id: 'crm-panel',         label: 'CRM Panel',       icon: '💰', description: 'MRR total, stage funnel' },
   { id: 'blocked-tasks',     label: 'Blocked Tasks',   icon: '🔒', description: 'Tasks blocked by dependencies' },
   { id: 'go-live-dates',     label: 'Go-Live Dates',   icon: '🚀', description: 'Clients with upcoming go-live dates' },
+  { id: 'ai-portfolio-brief', label: 'AI Portfolio Brief', icon: '🧠', description: 'AI-powered at-risk client analysis' },
+  { id: 'time-report',       label: 'Time Report',     icon: '⏱',  description: 'Hours per client, profitability ranking' },
 ];
 
 interface BuildADashProps {

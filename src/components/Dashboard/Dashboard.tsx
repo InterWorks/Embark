@@ -5,6 +5,8 @@ import { Button } from '../UI/Button';
 import { SLAStatusWidget } from '../SLA/SLAStatusWidget';
 import { GoLiveWidget } from './GoLiveWidget';
 import { BlockedTasksWidget } from './BlockedTasksWidget';
+import { AIPortfolioBriefWidget } from './AIPortfolioBriefWidget';
+import { TimeReportWidget } from './TimeReportWidget';
 import { BuildADash } from './BuildADash';
 import { useAuth } from '../../context/AuthContext';
 import type { View, Priority, LifecycleStage, Client, DashboardWidgetId } from '../../types';
@@ -805,6 +807,12 @@ export function Dashboard({ onNavigate, onOpenDigest, onSelectClient }: Dashboar
 
       {/* Blocked Tasks */}
       {show('blocked-tasks') && <BlockedTasksWidget clients={activeClients} onClientClick={onSelectClient} />}
+
+      {/* AI Portfolio Brief */}
+      {show('ai-portfolio-brief') && <AIPortfolioBriefWidget onSelectClient={onSelectClient} />}
+
+      {/* Time Report */}
+      {show('time-report') && <TimeReportWidget clients={activeClients} />}
 
       {/* Recent Clients */}
       {show('recent-clients') && <div className="glass-card p-6">

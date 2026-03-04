@@ -10,7 +10,8 @@ export type AppEventType =
   | 'webhook_delivered'
   | 'webhook_failed'
   | 'graduation_ready'
-  | 'phase_advanced';
+  | 'phase_advanced'
+  | 'client_health_drop';
 
 export type AppEvent =
   | { type: 'client_created';        clientId: string; clientName: string; timestamp: string }
@@ -24,7 +25,8 @@ export type AppEvent =
   | { type: 'webhook_delivered';     endpointId: string; event: AppEventType; timestamp: string }
   | { type: 'webhook_failed';        endpointId: string; event: AppEventType; error: string; timestamp: string }
   | { type: 'graduation_ready';      clientId: string; clientName: string; timestamp: string }
-  | { type: 'phase_advanced';        clientId: string; phaseName: string; timestamp: string };
+  | { type: 'phase_advanced';        clientId: string; phaseName: string; timestamp: string }
+  | { type: 'client_health_drop';    clientId: string; clientName: string; healthStatus: string; timestamp: string };
 
 type Handler = (event: AppEvent) => void;
 const handlers: Handler[] = [];

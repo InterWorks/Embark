@@ -12,6 +12,32 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: '7.0.0',
+    date: 'March 4, 2026',
+    title: 'Embark Unstoppable',
+    changes: [
+      { type: 'feature', description: 'Global Task Kanban Board — drag tasks across To Do / In Progress / Blocked / Done columns from a single board spanning all clients; card click opens slide-in drawer with subtasks, comments, and status controls' },
+      { type: 'feature', description: 'Per-Client Task Board — phase-scoped kanban inside each client detail view; drag tasks within the same client to change status' },
+      { type: 'feature', description: 'Two-Way Client Portal — clients can now check off their own tasks, leave per-task comments, post project status updates, and attach files directly from their portal URL' },
+      { type: 'feature', description: 'Client Activity Badge — portal header shows "Last viewed by client: X ago" so CSMs always know when a client was last active' },
+      { type: 'feature', description: 'Portal Preview Toggle — PortalModal gains a "Client View / CSM Summary" toggle; CSM view shows last visit time, tasks completed via portal, and recent status updates' },
+      { type: 'feature', description: 'AI Risk Brief — per-client collapsible AI panel with a Low / Medium / High / Critical tier badge; Critical tier pulses red to demand attention' },
+      { type: 'feature', description: 'AI Portfolio Brief — dashboard widget runs an AI analysis across all active clients and surfaces top 3 at-risk clients with recommended plays' },
+      { type: 'feature', description: 'Anomaly Detection — background monitor checks every 60 seconds for on-track → at-risk health transitions and fires alerts to the Morning Briefing' },
+      { type: 'feature', description: 'AI Draft Button — ✨ AI Draft button in the Communication Timeline pre-fills the summary field based on recent comms and client activity' },
+      { type: 'feature', description: '"Why at risk?" AI — 🧠 button per at-risk client in Focus Mode opens an AI chat pre-seeded with client context for instant triage' },
+      { type: 'feature', description: 'Smart Intake Forms — form builder with 7 field types, conditional logic (showIf), public /#form/{id} URL, and auto-creates clients + applies templates on submission' },
+      { type: 'feature', description: 'Form Submissions Log — CSM view of all form submissions linked to created clients with data preview' },
+      { type: 'feature', description: 'Live Task Timer — clock button on every task; pulsing red dot + elapsed time when running; one active timer at a time with switch confirmation' },
+      { type: 'feature', description: 'Manual Time Logging — Log Time modal with hours/minutes, billable toggle, and note field; History tab lists all entries with delete' },
+      { type: 'feature', description: 'Time Entry Chip — ⏱ chip below each task title showing total and billable hours; click to open history' },
+      { type: 'feature', description: 'Client Time Report — per-client "Time" tab with total/billable/non-billable summary cards and per-task breakdown table' },
+      { type: 'feature', description: 'Time Report Dashboard Widget — top 5 clients by total hours with progress bars and grand total' },
+      { type: 'improvement', description: 'Team member profiles now support Hourly Rate ($) for profitability calculations' },
+      { type: 'improvement', description: 'TaskStatus field added to checklist items (todo / in-progress / blocked / done); backwards-compatible with existing completed/isBlocked booleans' },
+    ],
+  },
+  {
     version: '6.0.0',
     date: 'March 4, 2026',
     title: 'Embark Elevated',
@@ -199,7 +225,7 @@ export function Changelog({ isCollapsed = false }: ChangelogProps) {
         {!isCollapsed && <span className="font-medium text-sm">What's New</span>}
         {!isCollapsed && (
           <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-violet-500 to-purple-600 text-white">
-            v6.0
+            v7.0
           </span>
         )}
       </button>

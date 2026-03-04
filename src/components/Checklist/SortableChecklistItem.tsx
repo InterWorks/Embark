@@ -3,6 +3,8 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ChecklistItem as ChecklistItemType, RecurrencePattern, OnboardingPhase } from '../../types';
 import { useClientContext } from '../../context/ClientContext';
+import { TimerButton } from './TimerButton';
+import { TimeEntryChip } from './TimeEntryChip';
 
 interface SortableChecklistItemProps {
   clientId: string;
@@ -392,6 +394,14 @@ export function SortableChecklistItem({ clientId, item, allItems, phases, isLock
             </span>
           )}
         </div>
+      )}
+
+      {/* Time tracking */}
+      {!item.completed && (
+        <TimerButton clientId={clientId} taskId={item.id} taskTitle={item.title} />
+      )}
+      {(item.timeEntries?.length ?? 0) > 0 && (
+        <TimeEntryChip clientId={clientId} taskId={item.id} taskTitle={item.title} entries={item.timeEntries ?? []} />
       )}
 
       {/* Phase badge */}

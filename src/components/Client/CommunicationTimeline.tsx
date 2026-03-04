@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import type { CommunicationLogEntry, CommunicationType, ChecklistItem } from '../../types';
 import { useClientContext } from '../../context/ClientContext';
+import { useAISettings } from '../../hooks/useAISettings';
 
 interface CommunicationTimelineProps {
   clientId: string;
@@ -68,9 +69,50 @@ interface QuickLogFormProps {
 }
 
 function QuickLogForm({ clientId, preLinkedTaskId, checklist = [], onDone }: QuickLogFormProps) {
-  const { addCommunication } = useClientContext();
+  const { addCommunication, clients } = useClientContext();
+  const { settings } = useAISettings();
   const [type, setType] = useState<CommunicationType>('note');
   const [summary, setSummary] = useState('');
+  const [aiDrafting, setAiDrafting] = useState(false);
+
+  const handleAIDraft = async () => {
+    if (!settings.anthropicApiKey) return;
+    setAiDrafting(true);
+    try {
+      const client = clients.find(c => c.id === clientId);
+      const recentComms = (client?.communicationLog ?? []).slice(-5).map(e => `${e.type}: ${e.subject}`).join('\n');
+      const recentActivity = (client?.activityLog ?? []).slice(-5).map(e => e.description).join('\n');
+      const prompt = `Draft a brief communication summary (1-2 sentences) for a client success manager to log after working with client "${client?.name ?? 'client'}".
+
+Recent communications:
+${recentComms || 'None'}
+
+Recent activity:
+${recentActivity || 'None'}
+
+Write a natural, professional summary of what likely happened in this interaction. Be concise.`;
+
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': settings.anthropicApiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 150,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+      const data = await resp.json();
+      const text = data.content?.[0]?.text ?? '';
+      if (text) setSummary(text.trim());
+    } catch { /* ignore */ } finally {
+      setAiDrafting(false);
+    }
+  };
   const [participants, setParticipants] = useState('');
   const [duration, setDuration] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
@@ -111,14 +153,27 @@ function QuickLogForm({ clientId, preLinkedTaskId, checklist = [], onDone }: Qui
         ))}
       </div>
 
-      <input
-        value={summary}
-        onChange={e => setSummary(e.target.value)}
-        placeholder="Summary..."
-        className="w-full mb-2 px-3 py-2 rounded-lg text-sm bg-white/50 dark:bg-white/10 border border-white/30 dark:border-white/10 outline-none focus:ring-2 focus:ring-purple-500/50"
-        autoFocus
-        onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onDone(); }}
-      />
+      <div className="flex gap-2 mb-2">
+        <input
+          value={summary}
+          onChange={e => setSummary(e.target.value)}
+          placeholder="Summary..."
+          className="flex-1 px-3 py-2 rounded-lg text-sm bg-white/50 dark:bg-white/10 border border-white/30 dark:border-white/10 outline-none focus:ring-2 focus:ring-purple-500/50"
+          autoFocus
+          onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onDone(); }}
+        />
+        {settings.anthropicApiKey && (
+          <button
+            type="button"
+            onClick={handleAIDraft}
+            disabled={aiDrafting}
+            className="px-2.5 py-2 rounded-lg text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors disabled:opacity-50 whitespace-nowrap"
+            title="AI Draft"
+          >
+            {aiDrafting ? '...' : '✨ AI Draft'}
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-2 mb-2">
         <input

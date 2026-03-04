@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useFocus } from '../../hooks/useFocus';
+import { subscribe } from '../../events/appEvents';
+import type { AppEvent } from '../../events/appEvents';
 
 const BRIEFING_KEY = 'embark_briefing_date';
 
 export function MorningBriefing() {
   const [visible, setVisible] = useState(false);
+  const [healthAlerts, setHealthAlerts] = useState<Array<{ clientName: string; healthStatus: string }>>([]);
   const { counts } = useFocus();
+
+  // Subscribe to health drop events
+  useEffect(() => {
+    return subscribe((event: AppEvent) => {
+      if (event.type === 'client_health_drop') {
+        setHealthAlerts(prev => [...prev, { clientName: event.clientName, healthStatus: event.healthStatus }]);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -46,6 +58,19 @@ export function MorningBriefing() {
             </svg>
           </button>
         </div>
+
+        {healthAlerts.length > 0 && (
+          <div className="mb-3 space-y-1.5">
+            {healthAlerts.map((alert, i) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-2 bg-red-100 dark:bg-red-900/30 rounded-xl text-xs">
+                <span className="text-red-600 dark:text-red-400">⚠️</span>
+                <span className="text-red-700 dark:text-red-300 font-medium">
+                  {alert.clientName} health dropped to {alert.healthStatus}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="space-y-2 mb-4">
           {counts.overdue > 0 && (

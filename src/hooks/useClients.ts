@@ -285,6 +285,37 @@ export function useClients() {
     );
   }, [setClients]);
 
+  const updateChecklistItemStatus = useCallback((clientId: string, itemId: string, status: import('../types').TaskStatus) => {
+    setClients((prev) =>
+      prev.map((client) => {
+        if (client.id !== clientId) return client;
+        const updatedChecklist = client.checklist.map(i => {
+          if (i.id !== itemId) return i;
+          return {
+            ...i,
+            status,
+            completed: status === 'done',
+            isBlocked: status === 'blocked',
+          };
+        });
+        return { ...client, checklist: updatedChecklist };
+      })
+    );
+  }, [setClients]);
+
+  const addTimeEntry = useCallback((clientId: string, taskId: string, entry: import('../types').TimeEntry) => {
+    setClients((prev) =>
+      prev.map((client) => {
+        if (client.id !== clientId) return client;
+        const updatedChecklist = client.checklist.map(i => {
+          if (i.id !== taskId) return i;
+          return { ...i, timeEntries: [...(i.timeEntries ?? []), entry] };
+        });
+        return { ...client, checklist: updatedChecklist };
+      })
+    );
+  }, [setClients]);
+
   const toggleChecklistItem = useCallback((clientId: string, itemId: string) => {
     setClients((prev) =>
       prev.map((client) => {
@@ -1281,5 +1312,8 @@ export function useClients() {
     completePhase,
     // For undo/redo
     setClientsDirectly,
+    // v7.0 additions
+    updateChecklistItemStatus,
+    addTimeEntry,
   };
 }

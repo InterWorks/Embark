@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { AuthGate } from './components/Auth/AuthGate';
+import { FormRoute } from './components/Forms/FormRoute';
 import { ClientProvider, useClientContext } from './context/ClientContext';
 import { ToastProvider } from './components/UI/Toast';
 import { UndoRedoProvider } from './context/UndoRedoContext';
@@ -24,6 +25,7 @@ import { MorningBriefing } from './components/Focus/MorningBriefing';
 import { ClientPortalView } from './components/Portal/ClientPortalView';
 import type { View, Client } from './types';
 import { useSLAStatuses } from './hooks/useSLA';
+import { useAnomalyDetection } from './hooks/useAnomalyDetection';
 import { emit } from './events/appEvents';
 import { useWebhooks } from './hooks/useWebhooks';
 import { initWebhookDelivery } from './services/webhookDelivery';
@@ -41,6 +43,13 @@ const HallOfHeroes = lazy(() => import('./components/Gamification/HallOfHeroes')
 const ReportView = lazy(() => import('./components/Reports/ReportView').then(m => ({ default: m.ReportView })));
 const IntegrationsView = lazy(() => import('./components/Integrations/IntegrationsView').then(m => ({ default: m.IntegrationsView })));
 const FocusView = lazy(() => import('./components/Focus/FocusView').then(m => ({ default: m.FocusView })));
+const GlobalTaskKanban = lazy(() => import('./components/Views/GlobalTaskKanban'));
+const FormsView = lazy(() => import('./components/Forms/FormsView').then(m => ({ default: m.FormsView })));
+
+function AnomalyDetector({ clients }: { clients: Client[] }) {
+  useAnomalyDetection(clients);
+  return null;
+}
 
 function SLAMonitor({ clients }: { clients: Client[] }) {
   const slaStatuses = useSLAStatuses(clients);
@@ -163,6 +172,7 @@ function AppContent() {
     { key: 'd', handler: () => setCurrentView('dashboard') },
     { key: 'c', handler: () => setCurrentView('clients') },
     { key: 't', handler: () => setCurrentView('tasks') },
+    { key: 'b', handler: () => setCurrentView('board') },
     { key: 'p', handler: () => setCurrentView('planner') },
     { key: 'h', handler: () => setCurrentView('hall-of-heroes') },
     { key: 'r', handler: () => setCurrentView('reports') },
@@ -210,6 +220,8 @@ function AppContent() {
               />
             )}
             {currentView === 'tasks' && <TasksView />}
+            {currentView === 'board' && <GlobalTaskKanban />}
+            {currentView === 'forms' && <FormsView />}
             {currentView === 'planner' && <PlannerView />}
             {currentView === 'notes' && <NotesView />}
             {currentView === 'templates' && <TemplateList />}
@@ -240,6 +252,7 @@ function AppContent() {
       {currentUser && !currentUser.onboardingComplete && <NewUserWizard />}
       {digestOpen && <WeeklyDigestModal digest={digest} onClose={handleCloseDigest} />}
       <SLAMonitor clients={clients} />
+      <AnomalyDetector clients={clients} />
       <WebhookServiceInit />
       <MorningBriefing />
     </UndoRedoProvider>
@@ -264,11 +277,13 @@ function App() {
         <ErrorBoundary>
           <ToastProvider>
             <ClientProvider>
-              <PortalRoute>
-                <AuthGate>
-                  <AppContent />
-                </AuthGate>
-              </PortalRoute>
+              <FormRoute>
+                <PortalRoute>
+                  <AuthGate>
+                    <AppContent />
+                  </AuthGate>
+                </PortalRoute>
+              </FormRoute>
             </ClientProvider>
           </ToastProvider>
         </ErrorBoundary>

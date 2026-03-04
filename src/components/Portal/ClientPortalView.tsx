@@ -5,6 +5,8 @@ import type { Client } from '../../types';
 import { getClientHealth, HEALTH_COLORS } from '../../utils/clientHealth';
 import { SLABadge } from '../SLA/SLABadge';
 import { useSLAStatuses } from '../../hooks/useSLA';
+import { usePortalWriter } from '../../hooks/usePortalWriter';
+import { formatRelativeTime } from '../../utils/helpers';
 
 interface ClientPortalViewProps {
   client: Client;
@@ -22,6 +24,35 @@ function statusLabel(status: Client['status']): string {
 export function ClientPortalView({ client }: ClientPortalViewProps) {
   const health = getClientHealth(client);
   const slaStatuses = useSLAStatuses([client]);
+  const { completeTask, addComment, addStatusUpdate, logPortalView } = usePortalWriter(client.id);
+  const [localCompleted, setLocalCompleted] = useState<Set<string>>(new Set());
+  const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
+  const [statusUpdateText, setStatusUpdateText] = useState('');
+  const [statusUpdatePosted, setStatusUpdatePosted] = useState(false);
+
+  useEffect(() => { logPortalView(); }, [logPortalView]);
+
+  const handleCompleteTask = useCallback((taskId: string) => {
+    setLocalCompleted(prev => new Set([...prev, taskId]));
+    completeTask(taskId);
+  }, [completeTask]);
+
+  const handlePostComment = useCallback((taskId: string) => {
+    const text = (commentTexts[taskId] ?? '').trim();
+    if (!text) return;
+    addComment(taskId, text);
+    setCommentTexts(prev => ({ ...prev, [taskId]: '' }));
+  }, [commentTexts, addComment]);
+
+  const handlePostStatusUpdate = useCallback(() => {
+    const text = statusUpdateText.trim();
+    if (!text) return;
+    addStatusUpdate(text);
+    setStatusUpdateText('');
+    setStatusUpdatePosted(true);
+    setTimeout(() => setStatusUpdatePosted(false), 3000);
+  }, [statusUpdateText, addStatusUpdate]);
+
   const worstSLA = useMemo(() => {
     const order = { breached: 0, warning: 1, on_track: 2 };
     return [...slaStatuses].sort((a, b) => order[a.status] - order[b.status])[0];
@@ -387,22 +418,80 @@ export function ClientPortalView({ client }: ClientPortalViewProps) {
           </div>
         )}
 
-        {/* Your Action Items (client-owned tasks) */}
+        {/* Your Action Items (client-owned tasks) — interactive */}
         {clientActionItems.length > 0 && (
           <div className="bg-slate-50 rounded-2xl p-6 border-l-4 border-violet-500">
             <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Your Action Items</h2>
-            <ol className="space-y-2 list-decimal list-inside">
-              {clientActionItems.map((t) => (
-                <li key={t.id} className="text-sm text-slate-700">
-                  <span className="font-medium">{t.title}</span>
-                  {t.dueDate && (
-                    <span className="text-slate-400 text-xs ml-2">· due {t.dueDate}</span>
-                  )}
-                </li>
-              ))}
-            </ol>
+            <div className="space-y-4">
+              {clientActionItems.map((t) => {
+                const isDone = localCompleted.has(t.id);
+                return (
+                  <div key={t.id} className={`rounded-xl p-3 transition-all ${isDone ? 'opacity-50' : 'bg-white shadow-sm'}`}>
+                    <div className="flex items-start gap-3">
+                      <button
+                        onClick={() => !isDone && handleCompleteTask(t.id)}
+                        disabled={isDone}
+                        className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center shrink-0 transition-all ${isDone ? 'bg-emerald-500' : 'border-2 border-slate-300 hover:border-violet-500'}`}
+                      >
+                        {isDone && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${isDone ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.title}</p>
+                        {t.dueDate && <p className="text-xs text-slate-400 mt-0.5">Due {new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>}
+                        {!isDone && (
+                          <div className="flex gap-2 mt-2">
+                            <input
+                              value={commentTexts[t.id] ?? ''}
+                              onChange={e => setCommentTexts(prev => ({ ...prev, [t.id]: e.target.value }))}
+                              placeholder="Leave a comment..."
+                              className="flex-1 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                            />
+                            <button
+                              onClick={() => handlePostComment(t.id)}
+                              className="text-xs px-3 py-1.5 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition-colors"
+                            >
+                              Post
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
+
+        {/* Project Status Update */}
+        <div className="bg-slate-50 rounded-2xl p-6">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Post a Status Update</h2>
+          {(client.communicationLog ?? []).filter(e => e.source === 'client-portal').slice(-3).reverse().map(entry => (
+            <div key={entry.id} className="mb-3 text-sm bg-white rounded-xl p-3 shadow-sm">
+              <p className="text-slate-600">{entry.content}</p>
+              <p className="text-xs text-slate-400 mt-1">{formatRelativeTime(entry.timestamp)}</p>
+            </div>
+          ))}
+          <div className="mt-3 space-y-2">
+            <textarea
+              value={statusUpdateText}
+              onChange={e => setStatusUpdateText(e.target.value)}
+              placeholder="How is the project going from your perspective?"
+              rows={3}
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-violet-400 resize-none"
+            />
+            <button
+              onClick={handlePostStatusUpdate}
+              className="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+            >
+              {statusUpdatePosted ? '✓ Posted!' : 'Post Update'}
+            </button>
+          </div>
+        </div>
 
         {/* What We're Working On (internal tasks) */}
         {internalItems.length > 0 && (

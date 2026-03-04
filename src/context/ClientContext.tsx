@@ -87,6 +87,8 @@ interface ClientContextType {
   importClients: (clients: ClientFormData[]) => number;
   restoreBackup: (clients: Client[], merge?: boolean) => number;
   setClientsDirectly: (clients: Client[]) => void;
+  updateChecklistItemStatus: (clientId: string, itemId: string, status: import('../types').TaskStatus) => void;
+  addTimeEntry: (clientId: string, taskId: string, entry: import('../types').TimeEntry) => void;
   templates: ChecklistTemplate[];
   addTemplate: (name: string, items: { title: string; dueOffsetDays?: number }[]) => ChecklistTemplate;
   updateTemplate: (id: string, data: Partial<Omit<ChecklistTemplate, 'id' | 'createdAt'>>) => void;
@@ -516,6 +518,8 @@ export function ClientProvider({ children }: ClientProviderProps) {
     reorderPhases: clientOperations.reorderPhases,
     completePhase,
     addClientNote: clientOperations.addClientNote,
+    updateChecklistItemStatus: clientOperations.updateChecklistItemStatus,
+    addTimeEntry: clientOperations.addTimeEntry,
   };
 
   return (

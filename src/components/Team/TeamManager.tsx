@@ -624,6 +624,7 @@ function MemberFormModal({ member, onSave, onClose }: MemberFormModalProps) {
   const [jobTitle, setJobTitle] = useState(member?.jobTitle || '');
   const [phone, setPhone] = useState(member?.phone || '');
   const [role, setRole] = useState<TeamRole>(member?.role || 'member');
+  const [hourlyRate, setHourlyRate] = useState(member?.hourlyRate?.toString() || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -635,6 +636,7 @@ function MemberFormModal({ member, onSave, onClose }: MemberFormModalProps) {
       jobTitle: jobTitle.trim() || undefined,
       phone: phone.trim() || undefined,
       role,
+      hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
     });
   };
 
@@ -701,6 +703,21 @@ function MemberFormModal({ member, onSave, onClose }: MemberFormModalProps) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+1 (555) 123-4567"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Hourly Rate ($)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={hourlyRate}
+              onChange={(e) => setHourlyRate(e.target.value)}
+              placeholder="e.g. 150"
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500"
             />
           </div>

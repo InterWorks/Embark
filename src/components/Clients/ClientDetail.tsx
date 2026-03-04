@@ -4,7 +4,7 @@ import type { Client, ClientFormData, Priority } from '../../types';
 import { useClientContext } from '../../context/ClientContext';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
-import { formatDate, formatPhone } from '../../utils/helpers';
+import { formatDate, formatPhone, formatRelativeTime } from '../../utils/helpers';
 import { exportClientToPDF } from '../../utils/pdfExport';
 import { exportClientStatusPDF } from '../../utils/export';
 import { useSLAStatuses } from '../../hooks/useSLA';
@@ -28,15 +28,19 @@ import { EmailComposer } from '../Email/EmailComposer';
 import { ContactsSection } from './ContactsSection';
 import { AccountSection } from './AccountSection';
 import { PortalModal } from '../Portal/PortalModal';
+import { getPortalLastView } from '../../hooks/usePortalWriter';
 import { PhaseProgress } from '../Phases/PhaseProgress';
 import { PhaseManager } from '../Phases/PhaseManager';
 import { PhaseGateButton } from '../Phases/PhaseGateButton';
 import { HealthScoreBadge } from './HealthScoreBadge';
 import { HealthPulsePanel } from './HealthPulsePanel';
+import { AIRiskBrief } from '../AI/AIRiskBrief';
 import { NextActionBanner } from './NextActionBanner';
 import { GraduationModal } from './GraduationModal';
 import { KickoffPackModal } from './KickoffPackModal';
 import { DependencyGraph } from '../Checklist/DependencyGraph';
+import { ClientTaskKanban } from './ClientTaskKanban';
+import { ClientTimeReport } from './ClientTimeReport';
 
 interface ClientDetailProps {
   client: Client;
@@ -56,7 +60,7 @@ const priorityColors: Record<Priority, string> = {
   none: '',
 };
 
-type TaskViewMode = 'list' | 'tables' | 'graph';
+type TaskViewMode = 'list' | 'tables' | 'board' | 'graph' | 'time';
 type ActivityViewMode = 'timeline' | 'list';
 
 export function ClientDetail({ client, onBack }: ClientDetailProps) {
@@ -262,12 +266,23 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
                 </svg>
                 Email
               </Button>
-              <Button variant="secondary" onClick={() => setShowPortal(true)}>
-                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.867V16a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                </svg>
-                Portal
-              </Button>
+              <div className="relative inline-block">
+                <Button variant="secondary" onClick={() => setShowPortal(true)}>
+                  <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.867V16a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                  </svg>
+                  Portal
+                </Button>
+                {(() => {
+                  const lastView = getPortalLastView(client.id);
+                  if (!lastView) return null;
+                  return (
+                    <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 bg-cyan-500 text-white text-xs rounded-full font-bold leading-none whitespace-nowrap shadow">
+                      viewed {formatRelativeTime(lastView)}
+                    </span>
+                  );
+                })()}
+              </div>
               <Button variant="secondary" onClick={handleCopyPortalUrl}>
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -499,9 +514,10 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
         </div>
 
         <div className="p-6">
-          {/* AI Health Pulse */}
-          <div className="mb-6">
+          {/* AI Health Pulse + Risk Brief */}
+          <div className="mb-6 space-y-2">
             <HealthPulsePanel client={client} slaStatuses={slaStatuses} />
+            <AIRiskBrief client={client} slaStatuses={slaStatuses} />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
@@ -539,6 +555,32 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                       </svg>
                     </button>
+                    <button
+                      onClick={() => setTaskViewMode('board')}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                        taskViewMode === 'board'
+                          ? 'bg-white dark:bg-white/20 text-gray-900 dark:text-white shadow-sm'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                      title="Kanban Board"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setTaskViewMode('time')}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                        taskViewMode === 'time'
+                          ? 'bg-white dark:bg-white/20 text-gray-900 dark:text-white shadow-sm'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                      title="Time Report"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
                     {client.checklist.some(t => t.dependsOn?.length) && (
                       <button
                         onClick={() => setTaskViewMode('graph')}
@@ -560,6 +602,10 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
                   <Checklist clientId={client.id} client={client} items={client.checklist} phases={client.phases} />
                 ) : taskViewMode === 'tables' ? (
                   <TaskTableView client={client} />
+                ) : taskViewMode === 'board' ? (
+                  <ClientTaskKanban client={client} />
+                ) : taskViewMode === 'time' ? (
+                  <ClientTimeReport client={client} />
                 ) : (
                   <DependencyGraph
                     tasks={client.checklist}

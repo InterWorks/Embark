@@ -32,6 +32,13 @@ export function formatRelativeTime(isoString: string): string {
   return `${months}mo ago`;
 }
 
+export function getEffectiveStatus(item: import('../types').ChecklistItem): import('../types').TaskStatus {
+  if (item.status) return item.status;
+  if (item.completed) return 'done';
+  if (item.isBlocked) return 'blocked';
+  return 'todo';
+}
+
 export function buildTasksFromTemplate(
   template: import('../types').ChecklistTemplate,
   goLiveDate?: string

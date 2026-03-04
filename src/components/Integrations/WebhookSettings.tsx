@@ -22,6 +22,7 @@ const EVENT_LABELS: Record<AppEventType, string> = {
   webhook_failed: 'Webhook Failed',
   graduation_ready: 'Graduation Ready',
   phase_advanced: 'Phase Advanced',
+  client_health_drop: 'Health Drop Detected',
 };
 
 interface EndpointFormState {

@@ -1,4 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { formatRelativeTime } from '../../utils/helpers';
+import { getPortalLastView } from '../../hooks/usePortalWriter';
 import type { Client } from '../../types';
 import { ClientPortalView } from './ClientPortalView';
 import { usePortalExport } from '../../hooks/usePortalExport';
@@ -11,6 +13,10 @@ interface PortalModalProps {
 
 export function PortalModal({ client, onClose }: PortalModalProps) {
   const { exportPortal } = usePortalExport();
+  const [viewMode, setViewMode] = useState<'client' | 'csm'>('client');
+  const lastViewedAt = getPortalLastView(client.id);
+  const portalComments = (client.communicationLog ?? []).filter(e => e.source === 'client-portal');
+  const clientCompletedTasks = client.checklist.filter(t => t.completed && t.ownerType === 'client');
 
   // Close on Escape
   useEffect(() => {
@@ -29,8 +35,21 @@ export function PortalModal({ client, onClose }: PortalModalProps) {
       {/* Toolbar */}
       <div className="flex items-center justify-between px-6 py-3 bg-zinc-900 border-b border-zinc-700 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-bold text-white">{client.name} — Client Portal Preview</span>
-          <span className="px-2 py-0.5 bg-violet-700 text-white text-xs font-bold rounded-full">Preview</span>
+          <span className="text-sm font-bold text-white">{client.name} — Client Portal</span>
+          <div className="flex gap-1 p-0.5 bg-zinc-800 rounded-lg">
+            <button
+              onClick={() => setViewMode('client')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${viewMode === 'client' ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+            >
+              Client View
+            </button>
+            <button
+              onClick={() => setViewMode('csm')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${viewMode === 'csm' ? 'bg-zinc-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+            >
+              CSM Summary
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Button
@@ -56,7 +75,42 @@ export function PortalModal({ client, onClose }: PortalModalProps) {
 
       {/* Portal content (scrollable) */}
       <div className="flex-1 overflow-y-auto">
-        <ClientPortalView client={client} />
+        {viewMode === 'client' ? (
+          <ClientPortalView client={client} />
+        ) : (
+          <div className="max-w-2xl mx-auto p-8 space-y-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Portal Activity Summary</h2>
+            <div className="glass-subtle rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Last viewed by client</span>
+                <span className="text-sm text-gray-500">
+                  {lastViewedAt ? formatRelativeTime(lastViewedAt) : 'Never'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Client tasks completed via portal</span>
+                <span className="text-sm text-gray-500">{clientCompletedTasks.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Status updates posted</span>
+                <span className="text-sm text-gray-500">{portalComments.length}</span>
+              </div>
+            </div>
+            {portalComments.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Recent Status Updates</h3>
+                <div className="space-y-2">
+                  {portalComments.slice(-5).reverse().map(entry => (
+                    <div key={entry.id} className="glass-subtle rounded-xl p-3">
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{entry.content}</p>
+                      <p className="text-xs text-gray-400 mt-1">{formatRelativeTime(entry.timestamp)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

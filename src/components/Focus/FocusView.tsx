@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { useFocus } from '../../hooks/useFocus';
-import type { Client } from '../../types';
+import { BudChat } from '../Buds/BudChat';
+import { budTemplates } from '../../hooks/useBuds';
+import type { Client, Bud } from '../../types';
 
 interface FocusViewProps {
   onSelectClient?: (client: Client) => void;
@@ -26,8 +29,16 @@ function RelativeDate({ dateStr }: { dateStr: string }) {
   return <span className="text-gray-500">{diff}d</span>;
 }
 
+// Create a singleton priorities-manager bud for FocusView
+const FOCUS_BUD: Bud = {
+  ...budTemplates['priorities-manager'],
+  id: 'focus-view-risk-bud',
+  createdAt: new Date(0).toISOString(),
+};
+
 export function FocusView({ onSelectClient }: FocusViewProps) {
   const { overdueTasks, atRiskClients, pendingFollowUps, counts } = useFocus();
+  const [riskBudClient, setRiskBudClient] = useState<Client | null>(null);
 
   return (
     <div className="p-6 space-y-6">
@@ -99,12 +110,21 @@ export function FocusView({ onSelectClient }: FocusViewProps) {
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{client.name}</p>
-                    <button
-                      onClick={() => onSelectClient?.(client)}
-                      className="text-xs text-purple-500 hover:text-purple-700 dark:hover:text-purple-300 whitespace-nowrap flex-shrink-0"
-                    >
-                      View →
-                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => setRiskBudClient(client)}
+                        title="Ask AI why this client is at risk"
+                        className="text-xs px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors"
+                      >
+                        🧠
+                      </button>
+                      <button
+                        onClick={() => onSelectClient?.(client)}
+                        className="text-xs text-purple-500 hover:text-purple-700 dark:hover:text-purple-300 whitespace-nowrap"
+                      >
+                        View →
+                      </button>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {reasons.map(r => (
@@ -160,6 +180,18 @@ export function FocusView({ onSelectClient }: FocusViewProps) {
           )}
         </div>
       </div>
+
+      {riskBudClient && (
+        <div className="fixed inset-0 z-50 flex items-end justify-end p-6 pointer-events-none">
+          <div className="pointer-events-auto w-full max-w-md shadow-2xl rounded-2xl overflow-hidden">
+            <BudChat
+              bud={FOCUS_BUD}
+              initialClient={riskBudClient}
+              onClose={() => setRiskBudClient(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

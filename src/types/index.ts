@@ -45,6 +45,7 @@ export interface CommunicationLogEntry {
   followUpDate?: string;   // ISO date for follow-up reminder
   linkedTaskId?: string;   // Links to a checklist item
   followUpResolved?: boolean; // Mark follow-up as done
+  source?: 'internal' | 'client-portal';
 }
 
 // Milestones
@@ -140,6 +141,17 @@ export interface OnboardingPhase {
   completedAt?: string; // ISO — set when all tasks in phase are done
 }
 
+export type TaskStatus = 'todo' | 'in-progress' | 'blocked' | 'done';
+
+export interface TimeEntry {
+  id: string;
+  userId: string;
+  duration: number; // minutes
+  note?: string;
+  billable: boolean;
+  loggedAt: string;
+}
+
 export interface ChecklistItem {
   id: string;
   title: string;
@@ -158,6 +170,10 @@ export interface ChecklistItem {
   isBlocked?: boolean;
   blockedBy?: 'client' | 'internal' | 'external';
   blockReason?: string;
+  status?: TaskStatus;   // Explicit kanban status (derived via getEffectiveStatus when absent)
+  timeEntries?: TimeEntry[];
+  attachments?: FileAttachment[];
+  priority?: Priority;
 }
 
 export type Priority = 'high' | 'medium' | 'low' | 'none';
@@ -276,7 +292,7 @@ export type ClientFormData = Omit<Client, 'id' | 'createdAt' | 'services' | 'che
   contacts?: ClientContact[];
 };
 
-export type View = 'dashboard' | 'clients' | 'templates' | 'tasks' | 'planner' | 'notes' | 'ai' | 'marketplace' | 'team' | 'automations' | 'hall-of-heroes' | 'reports' | 'integrations' | 'focus';
+export type View = 'dashboard' | 'clients' | 'templates' | 'tasks' | 'board' | 'planner' | 'notes' | 'ai' | 'marketplace' | 'team' | 'automations' | 'hall-of-heroes' | 'reports' | 'integrations' | 'focus' | 'forms';
 
 // Calendar Integration
 export type CalendarProvider = 'google' | 'microsoft';
@@ -405,6 +421,7 @@ export interface TeamMember {
   color: string;
   jobTitle?: string;
   phone?: string;
+  hourlyRate?: number;
   createdAt: string;
   lastActiveAt?: string;
 }
@@ -435,7 +452,8 @@ export type NotificationType =
   | 'mention'
   | 'automation'
   | 'system'
-  | 'contract_renewal';
+  | 'contract_renewal'
+  | 'portal_task_completed';
 
 export interface Notification {
   id: string;
@@ -593,8 +611,43 @@ export interface DashboardWidgetConfig {
 export type DashboardWidgetId =
   | 'stats-bar' | 'client-health' | 'tasks-overview' | 'priority-breakdown'
   | 'team-workload' | 'activity-feed' | 'onboarding-trend' | 'renewals'
-  | 'recent-clients' | 'sla-status' | 'crm-panel' | 'blocked-tasks' | 'go-live-dates';
+  | 'recent-clients' | 'sla-status' | 'crm-panel' | 'blocked-tasks' | 'go-live-dates'
+  | 'ai-portfolio-brief' | 'time-report';
 
 export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetId[] = [
   'stats-bar', 'client-health', 'tasks-overview', 'activity-feed', 'recent-clients', 'renewals',
 ];
+
+// ============ SMART INTAKE FORMS ============
+
+export type FormFieldType = 'text' | 'email' | 'phone' | 'dropdown' | 'date' | 'textarea' | 'checkbox-group' | 'file';
+
+export interface FormField {
+  id: string;
+  type: FormFieldType;
+  label: string;
+  required: boolean;
+  options?: string[];
+  mapsTo?: string;
+  placeholder?: string;
+  order: number;
+  showIf?: { fieldId: string; value: string };
+}
+
+export interface OnboardingForm {
+  id: string;
+  name: string;
+  description?: string;
+  fields: FormField[];
+  linkedTemplateId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FormSubmission {
+  id: string;
+  formId: string;
+  clientId: string;
+  submittedAt: string;
+  data: Record<string, unknown>;
+}

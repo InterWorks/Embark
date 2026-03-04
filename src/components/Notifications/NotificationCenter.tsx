@@ -14,6 +14,7 @@ const typeIcons: Record<NotificationType, { icon: string; color: string }> = {
   automation: { icon: '⚡', color: 'text-amber-500' },
   contract_renewal: { icon: '📄', color: 'text-orange-500' },
   system: { icon: 'ℹ️', color: 'text-gray-500' },
+  portal_task_completed: { icon: '🌐', color: 'text-cyan-500' },
 };
 
 interface NotificationCenterProps {

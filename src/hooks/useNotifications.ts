@@ -261,6 +261,15 @@ export function useNotifications() {
     });
   }, [addNotification]);
 
+  const notifyPortalTaskCompleted = useCallback((clientId: string, clientName: string, taskTitle: string) => {
+    addNotification({
+      type: 'portal_task_completed',
+      title: 'Client completed a task',
+      message: `${clientName} completed "${taskTitle}" via their portal`,
+      clientId,
+    });
+  }, [addNotification]);
+
   return {
     // State
     notifications: visibleNotifications,
@@ -292,6 +301,7 @@ export function useNotifications() {
     notifyAutomation,
     notifySystem,
     notifyContractRenewal,
+    notifyPortalTaskCompleted,
   };
 }
 
@@ -306,6 +316,7 @@ function checkTypeEnabled(type: NotificationType, preferences: NotificationPrefe
     case 'mention': return preferences.mentions;
     case 'automation': return preferences.automations;
     case 'contract_renewal': return preferences.contractRenewal ?? true;
+    case 'portal_task_completed': return true;
     case 'client_created':
     case 'system':
     default: return true;
