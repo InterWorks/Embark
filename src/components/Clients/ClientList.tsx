@@ -1,0 +1,571 @@
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import type { Client, ClientView, Priority, LifecycleStage } from '../../types';
+import { useClientContext } from '../../context/ClientContext';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { useSavedViews } from '../../hooks/useSavedViews';
+import type { SavedView } from '../../hooks/useSavedViews';
+import { ClientCard } from './ClientCard';
+import { ClientDetail } from './ClientDetail';
+import { IntakeWizard } from './IntakeWizard/IntakeWizard';
+import { Button } from '../UI/Button';
+import { Input } from '../UI/Input';
+import { BulkActionsBar } from '../UI/BulkActionsBar';
+import { KeyboardShortcutsHelp } from '../UI/KeyboardShortcutsHelp';
+import { SavedViewsManager } from '../UI/SavedViewsManager';
+import { ViewSwitcher } from '../Views/ViewSwitcher';
+import { TableView } from '../Views/TableView';
+import { KanbanBoard } from '../Views/KanbanBoard';
+import { TimelineView } from '../Views/TimelineView';
+import { GanttView } from '../Views/GanttView';
+import { CalendarView } from '../Views/CalendarView';
+import { exportClientsToCSV, exportOnboardingStatusReport } from '../../utils/export';
+
+interface ClientListProps {
+  initialSelectedClientId?: string | null;
+  onClearInitialSelection?: () => void;
+  triggerAddClient?: boolean;
+  onAddClientTriggered?: () => void;
+}
+
+export function ClientList({
+  initialSelectedClientId,
+  onClearInitialSelection,
+  triggerAddClient,
+  onAddClientTriggered,
+}: ClientListProps) {
+  const { clients, bulkUpdateStatus, bulkUpdatePriority, bulkArchive, bulkDelete, bulkRestore } = useClientContext();
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
+  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleStage | 'all'>('all');
+  const [currentView, setCurrentView] = useState<ClientView>('cards');
+  const [showArchived, setShowArchived] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { savedViews, pinnedViews, defaultView, saveView, deleteView, pinView, setDefaultView } = useSavedViews();
+
+  // Apply default view on first mount only
+  useEffect(() => {
+    if (defaultView) {
+      setSearchQuery(defaultView.filters.searchQuery);
+      setStatusFilter(defaultView.filters.statusFilter);
+      setAssigneeFilter(defaultView.filters.assigneeFilter);
+      setLifecycleFilter((defaultView.filters as { lifecycleFilter?: LifecycleStage | 'all' }).lifecycleFilter ?? 'all');
+      setCurrentView(defaultView.view);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activeClients = useMemo(() => clients.filter((c) => !c.archived), [clients]);
+  const archivedClients = useMemo(() => clients.filter((c) => c.archived), [clients]);
+  const displayClients = showArchived ? archivedClients : activeClients;
+
+  // Handle initial selection from global search
+  useEffect(() => {
+    if (initialSelectedClientId) {
+      const client = clients.find((c) => c.id === initialSelectedClientId);
+      if (client) {
+        setSelectedClient(client);
+        onClearInitialSelection?.();
+      }
+    }
+  }, [initialSelectedClientId, clients, onClearInitialSelection]);
+
+  // Handle trigger to open add client form from FAB
+  useEffect(() => {
+    if (triggerAddClient) {
+      setIsFormOpen(true);
+      onAddClientTriggered?.();
+    }
+  }, [triggerAddClient, onAddClientTriggered]);
+
+  const assignees = useMemo(() => {
+    const unique = [...new Set(displayClients.map((c) => c.assignedTo))];
+    return unique.sort();
+  }, [displayClients]);
+
+  const filteredClients = useMemo(() => {
+    return displayClients.filter((client) => {
+      const matchesSearch =
+        searchQuery === '' ||
+        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client.assignedTo.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesStatus = statusFilter === 'all' || client.status === statusFilter;
+      const matchesAssignee = assigneeFilter === 'all' || client.assignedTo === assigneeFilter;
+      const matchesLifecycle = lifecycleFilter === 'all' ||
+        (client.lifecycleStage ?? 'onboarding') === lifecycleFilter;
+
+      return matchesSearch && matchesStatus && matchesAssignee && matchesLifecycle;
+    });
+  }, [displayClients, searchQuery, statusFilter, assigneeFilter, lifecycleFilter]);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'n',
+      handler: () => !showArchived && setIsFormOpen(true),
+      description: 'Add new client',
+    },
+    {
+      key: '/',
+      handler: () => searchInputRef.current?.focus(),
+      description: 'Focus search',
+    },
+    {
+      key: 'Escape',
+      handler: () => {
+        if (isFormOpen) setIsFormOpen(false);
+        else if (showShortcutsHelp) setShowShortcutsHelp(false);
+        else if (selectedIds.size > 0) setSelectedIds(new Set());
+      },
+      description: 'Close modal / Cancel',
+    },
+    {
+      key: '?',
+      shift: true,
+      handler: () => setShowShortcutsHelp(true),
+      description: 'Show shortcuts help',
+    },
+    {
+      key: 'a',
+      ctrl: true,
+      handler: () => setSelectedIds(new Set(filteredClients.map((c) => c.id))),
+      description: 'Select all clients',
+    },
+    {
+      key: '1',
+      handler: () => setCurrentView('cards'),
+      description: 'Card view',
+    },
+    {
+      key: '2',
+      handler: () => setCurrentView('table'),
+      description: 'Table view',
+    },
+    {
+      key: '3',
+      handler: () => setCurrentView('kanban'),
+      description: 'Board view',
+    },
+    {
+      key: '4',
+      handler: () => setCurrentView('timeline'),
+      description: 'Timeline view',
+    },
+    {
+      key: '5',
+      handler: () => setCurrentView('gantt'),
+      description: 'Gantt view',
+    },
+    {
+      key: '6',
+      handler: () => setCurrentView('calendar'),
+      description: 'Calendar view',
+    },
+  ], !selectedClient);
+
+  // Clear selection when filters change
+  const handleFilterChange = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleSelectClient = (client: Client) => {
+    if (selectedIds.size > 0) {
+      // In selection mode, toggle selection
+      toggleSelection(client.id);
+    } else {
+      setSelectedClient(client);
+    }
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedClient(null);
+  };
+
+  const handleExport = () => {
+    exportClientsToCSV(clients);
+  };
+
+  const handleStatusReport = () => {
+    exportOnboardingStatusReport(clients);
+  };
+
+  // Selection handlers
+  const toggleSelection = useCallback((clientId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(clientId)) {
+        next.delete(clientId);
+      } else {
+        next.add(clientId);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(new Set(filteredClients.map((c) => c.id)));
+  }, [filteredClients]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  // Bulk action handlers
+  const handleBulkStatusChange = useCallback((status: Client['status']) => {
+    bulkUpdateStatus(Array.from(selectedIds), status);
+    setSelectedIds(new Set());
+  }, [selectedIds, bulkUpdateStatus]);
+
+  const handleBulkPriorityChange = useCallback((priority: Priority) => {
+    bulkUpdatePriority(Array.from(selectedIds), priority);
+    setSelectedIds(new Set());
+  }, [selectedIds, bulkUpdatePriority]);
+
+  const handleBulkArchive = useCallback(() => {
+    if (showArchived) {
+      bulkRestore(Array.from(selectedIds));
+    } else {
+      bulkArchive(Array.from(selectedIds));
+    }
+    setSelectedIds(new Set());
+  }, [selectedIds, showArchived, bulkArchive, bulkRestore]);
+
+  const handleBulkDelete = useCallback(() => {
+    bulkDelete(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  }, [selectedIds, bulkDelete]);
+
+  // Saved views handlers
+  const handleSaveView = useCallback((name: string, emoji?: string) => {
+    saveView(name, { statusFilter, assigneeFilter, searchQuery, lifecycleFilter } as Parameters<typeof saveView>[1], currentView, emoji);
+  }, [saveView, statusFilter, assigneeFilter, searchQuery, lifecycleFilter, currentView]);
+
+  const handleLoadView = useCallback((view: SavedView) => {
+    setStatusFilter(view.filters.statusFilter);
+    setAssigneeFilter(view.filters.assigneeFilter);
+    setSearchQuery(view.filters.searchQuery);
+    setLifecycleFilter((view.filters as { lifecycleFilter?: LifecycleStage | 'all' }).lifecycleFilter ?? 'all');
+    setCurrentView(view.view);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleDeleteView = useCallback((id: string) => {
+    deleteView(id);
+  }, [deleteView]);
+
+  if (selectedClient) {
+    const currentClient = clients.find((c) => c.id === selectedClient.id);
+    if (currentClient) {
+      return <ClientDetail client={currentClient} onBack={handleCloseDetail} />;
+    }
+  }
+
+  const renderView = () => {
+    if (displayClients.length === 0) {
+      if (showArchived) {
+        return (
+          <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+            <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">
+              No archived clients
+            </h3>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              Archived clients will appear here.
+            </p>
+            <Button variant="secondary" onClick={() => setShowArchived(false)} className="mt-6">
+              View Active Clients
+            </Button>
+          </div>
+        );
+      }
+      return (
+        <div className="flex flex-col items-center justify-center py-20 gap-5">
+          <div className="relative w-28 h-28 flex-shrink-0">
+            <div className="absolute inset-0 bg-yellow-400 clip-burst deco-float" />
+            <div className="absolute inset-[14px] bg-zinc-900 dark:bg-white clip-hex deco-float-1" />
+            <div className="absolute inset-[28px] bg-yellow-400 clip-diamond" />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="font-display text-2xl font-black text-zinc-900 dark:text-white">No clients yet</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Your roster is empty. Let's fix that.</p>
+          </div>
+          <button
+            onClick={() => setIsFormOpen(true)}
+            className="px-5 py-2 bg-yellow-400 text-zinc-900 font-black text-sm rounded-[4px] border-2 border-zinc-900 shadow-[3px_3px_0_0_#18181b] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_0_#18181b] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
+          >
+            + Add First Client
+          </button>
+        </div>
+      );
+    }
+
+    if (filteredClients.length === 0) {
+      return (
+        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">
+            No matching clients
+          </h3>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
+            Try adjusting your search or filters.
+          </p>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setSearchQuery('');
+              setStatusFilter('all');
+              setAssigneeFilter('all');
+              setLifecycleFilter('all');
+              handleFilterChange();
+            }}
+            className="mt-4"
+          >
+            Clear Filters
+          </Button>
+        </div>
+      );
+    }
+
+    switch (currentView) {
+      case 'table':
+        return (
+          <TableView
+            clients={filteredClients}
+            onSelectClient={handleSelectClient}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelection}
+            selectionMode={selectedIds.size > 0}
+          />
+        );
+      case 'kanban':
+        return <KanbanBoard clients={filteredClients} onSelectClient={handleSelectClient} />;
+      case 'timeline':
+        return <TimelineView clients={filteredClients} onSelectClient={handleSelectClient} />;
+      case 'gantt':
+        return <GanttView clients={filteredClients} onClientClick={handleSelectClient} />;
+      case 'calendar':
+        return <CalendarView clients={filteredClients} onClientClick={handleSelectClient} />;
+      case 'cards':
+      default:
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredClients.map((client) => (
+              <ClientCard
+                key={client.id}
+                client={client}
+                onSelect={handleSelectClient}
+                isSelected={selectedIds.has(client.id)}
+                onToggleSelect={toggleSelection}
+                selectionMode={selectedIds.size > 0}
+              />
+            ))}
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {showArchived ? 'Archived Clients' : 'Client Onboardings'}
+            </h2>
+            {archivedClients.length > 0 && (
+              <button
+                onClick={() => { setShowArchived(!showArchived); handleFilterChange(); }}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                  showArchived
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                <svg className="w-4 h-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                {showArchived ? 'View Active' : `Archive (${archivedClients.length})`}
+              </button>
+            )}
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            {filteredClients.length} of {displayClients.length} client{displayClients.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {displayClients.length > 0 && <ViewSwitcher currentView={currentView} onViewChange={setCurrentView} />}
+          {displayClients.length > 0 && (
+            <>
+              <Button variant="secondary" onClick={handleStatusReport} title="Export onboarding status report (Excel)">
+                <svg className="w-5 h-5 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="hidden sm:inline">Status Report</span>
+              </Button>
+              <Button variant="secondary" onClick={handleExport} title="Export all clients to CSV">
+                <svg className="w-5 h-5 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span className="hidden sm:inline">Export</span>
+              </Button>
+            </>
+          )}
+          {!showArchived && (
+            <Button variant="success" tilt onClick={() => setIsFormOpen(true)}>
+              <svg className="w-5 h-5 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline">Add Client</span>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {displayClients.length > 0 && (
+        <>
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <Input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); handleFilterChange(); }}
+                placeholder="Search clients... (Press / to focus)"
+                className="pl-10"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); handleFilterChange(); }}
+              className="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="on-hold">On Hold</option>
+              <option value="completed">Completed</option>
+            </select>
+            <select
+              value={assigneeFilter}
+              onChange={(e) => { setAssigneeFilter(e.target.value); handleFilterChange(); }}
+              className="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Assignees</option>
+              {assignees.map((assignee) => (
+                <option key={assignee} value={assignee}>
+                  {assignee}
+                </option>
+              ))}
+            </select>
+            <select
+              value={lifecycleFilter}
+              onChange={(e) => { setLifecycleFilter(e.target.value as LifecycleStage | 'all'); handleFilterChange(); }}
+              className="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Stages</option>
+              <option value="onboarding">Onboarding</option>
+              <option value="active-client">Active Client</option>
+              <option value="at-risk">At Risk</option>
+              <option value="churned">Churned</option>
+            </select>
+            <SavedViewsManager
+              savedViews={savedViews}
+              pinnedViews={pinnedViews}
+              currentFilters={{ statusFilter, assigneeFilter, searchQuery }}
+              onSaveView={handleSaveView}
+              onLoadView={handleLoadView}
+              onDeleteView={handleDeleteView}
+              onPinView={pinView}
+              onSetDefault={setDefaultView}
+            />
+          </div>
+        </div>
+
+        {/* Saved view chips */}
+        {savedViews.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {savedViews.map((view) => (
+              <button
+                key={view.id}
+                onClick={() => handleLoadView(view)}
+                className="flex items-center gap-1 px-3 py-1 text-xs font-bold border-2 border-zinc-300 dark:border-zinc-600 rounded-[4px] hover:border-yellow-400 hover:bg-yellow-50 dark:hover:bg-zinc-700 transition-colors text-zinc-700 dark:text-zinc-300"
+              >
+                {view.emoji && <span>{view.emoji}</span>}
+                {view.name}
+                {view.isDefault && <span className="text-yellow-500">★</span>}
+              </button>
+            ))}
+          </div>
+        )}
+        </>
+      )}
+
+      {selectedIds.size > 0 && (
+        <BulkActionsBar
+          selectedCount={selectedIds.size}
+          totalCount={filteredClients.length}
+          onSelectAll={selectAll}
+          onDeselectAll={deselectAll}
+          onBulkStatusChange={handleBulkStatusChange}
+          onBulkPriorityChange={handleBulkPriorityChange}
+          onBulkArchive={handleBulkArchive}
+          onBulkDelete={handleBulkDelete}
+        />
+      )}
+
+      {renderView()}
+
+      <IntakeWizard
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+      />
+
+      <KeyboardShortcutsHelp
+        isOpen={showShortcutsHelp}
+        onClose={() => setShowShortcutsHelp(false)}
+      />
+
+      {/* Keyboard shortcuts hint */}
+      <button
+        onClick={() => setShowShortcutsHelp(true)}
+        className="fixed bottom-4 right-4 px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+        title="Keyboard shortcuts"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <span className="hidden sm:inline">Press</span>
+        <kbd className="px-1.5 py-0.5 text-xs font-semibold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">?</kbd>
+        <span className="hidden sm:inline">for shortcuts</span>
+      </button>
+    </div>
+  );
+}

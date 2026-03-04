@@ -1,0 +1,501 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* CSS Custom Properties for theming */
+:root {
+  --theme-primary: #facc15; /* yellow-400 default */
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+}
+
+/* Theme accent color variants */
+.theme-violet { --theme-primary: #facc15; }
+.theme-blue   { --theme-primary: #2563eb; }
+.theme-emerald { --theme-primary: #16a34a; }
+.theme-rose   { --theme-primary: #ec4899; }
+.theme-amber  { --theme-primary: #ea580c; }
+.theme-cyan   { --theme-primary: #0891b2; }
+
+/* NeoBrutalism body — comic book halftone dot paper */
+body {
+  @apply text-zinc-900 dark:text-zinc-100;
+  font-family: var(--font-body);
+  min-height: 100vh;
+  background-color: #fefce8; /* yellow-50 */
+  background-image: radial-gradient(rgba(24,24,27,0.10) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
+
+/* Utility class for explicitly using display font */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.dark body,
+body:where(.dark, .dark *) {
+  background-color: #18181b; /* zinc-900 */
+  background-image: radial-gradient(rgba(255,255,255,0.07) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+
+/* ============================================================
+   NEOBRUTALISM GLASS CLASS OVERRIDES
+   These propagate to all 92+ components that use these classes
+   ============================================================ */
+
+/* .glass-card — primary card surface with hard shadow */
+.glass-card {
+  background: #ffffff;
+  border: 2px solid #18181b;
+  box-shadow: 4px 4px 0 0 #18181b;
+  border-radius: 4px;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.glass-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 0 #18181b;
+}
+
+.dark .glass-card {
+  background: #27272a; /* zinc-800 */
+  border-color: #ffffff;
+  box-shadow: 4px 4px 0 0 #ffffff;
+}
+
+.dark .glass-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 0 #ffffff;
+}
+
+/* .glass — general surface (panels, dropdowns, popovers) */
+.glass {
+  background: #ffffff;
+  border: 2px solid #18181b;
+  border-radius: 4px;
+}
+
+.dark .glass {
+  background: #27272a;
+  border-color: #ffffff;
+}
+
+/* .glass-subtle — lightweight surface (inline highlights, tags) */
+.glass-subtle {
+  background: #ffffff;
+  border: 2px solid #18181b;
+  border-radius: 4px;
+}
+
+.dark .glass-subtle {
+  background: #27272a;
+  border-color: #ffffff;
+}
+
+/* .glass-strong — used by header/sidebar top bars */
+.glass-strong {
+  background: #fefce8; /* yellow-50 — warm cream for header */
+  border-bottom: 2px solid #18181b;
+}
+
+.dark .glass-strong {
+  background: #18181b;
+  border-bottom-color: #ffffff;
+}
+
+/* .gradient-text — solid theme-color text (no gradient clip) */
+.gradient-text {
+  color: var(--theme-primary);
+}
+
+.dark .gradient-text {
+  color: #facc15; /* yellow-400 always visible on dark */
+}
+
+/* ============================================================
+   BRUTALIST UTILITY CLASSES
+   ============================================================ */
+
+/* Off-axis "sticker" rotation for decorative elements */
+.brut-tilt {
+  transform: rotate(-1.5deg);
+  transition: transform 0.1s ease;
+}
+
+.brut-tilt:hover {
+  transform: rotate(-0.5deg) translate(-1px, -1px);
+}
+
+.brut-shadow {
+  box-shadow: 4px 4px 0 0 #18181b;
+}
+
+.dark .brut-shadow {
+  box-shadow: 4px 4px 0 0 #ffffff;
+}
+
+.brut-border {
+  border: 2px solid #18181b;
+}
+
+.dark .brut-border {
+  border-color: #ffffff;
+}
+
+/* ============================================================
+   REMOVED: glow, glow-sm, border-gradient, animate-float,
+   animate-pulse-glow, glass-scroll (glassmorphism artifacts)
+   ============================================================ */
+
+/* Smooth transitions — kept for non-visual transitions */
+.transition-glass {
+  transition: all 0.15s ease;
+}
+
+/* Custom scrollbar — brutalist minimal */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e4e4e7; /* zinc-200 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #71717a; /* zinc-500 */
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #18181b; /* zinc-900 */
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #3f3f46; /* zinc-700 */
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #a1a1aa; /* zinc-400 */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #ffffff;
+}
+
+/* ============================================================
+   ANIMATION KEYFRAMES
+   ============================================================ */
+
+/* View transition fade — content fades in with upward drift on view change */
+@keyframes view-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-view-enter {
+  animation: view-enter 0.18s ease-out both;
+}
+
+/* Progress bar entrance — grows from left to right on mount */
+@keyframes bar-enter {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.progress-bar {
+  transform-origin: left;
+  animation: bar-enter 0.7s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+/* Toast slide-in from right */
+@keyframes toast-enter {
+  from { opacity: 0; transform: translateX(12px) translateY(4px); }
+  to   { opacity: 1; transform: translateX(0) translateY(0); }
+}
+.animate-toast-enter {
+  animation: toast-enter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Modal/panel scale-in — fixes EmailComposer bug */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-scale-in {
+  animation: scale-in 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Checklist item stagger entrance */
+@keyframes checklist-enter {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.checklist-item-enter {
+  animation: checklist-enter 0.15s ease-out both;
+}
+.checklist-item-enter:nth-child(1)  { animation-delay: 0ms; }
+.checklist-item-enter:nth-child(2)  { animation-delay: 30ms; }
+.checklist-item-enter:nth-child(3)  { animation-delay: 60ms; }
+.checklist-item-enter:nth-child(4)  { animation-delay: 90ms; }
+.checklist-item-enter:nth-child(5)  { animation-delay: 120ms; }
+.checklist-item-enter:nth-child(6)  { animation-delay: 150ms; }
+.checklist-item-enter:nth-child(7)  { animation-delay: 180ms; }
+.checklist-item-enter:nth-child(8)  { animation-delay: 210ms; }
+.checklist-item-enter:nth-child(n+9) { animation-delay: 240ms; }
+
+/* Slide-up entrance — BulkActionsBar */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Health status dot pulse */
+@keyframes health-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.3); }
+}
+.health-pulse-slow { animation: health-pulse 2s ease-in-out infinite; }
+.health-pulse-fast { animation: health-pulse 1s ease-in-out infinite; }
+
+/* Checkbox completion pop */
+@keyframes checkbox-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.animate-checkbox-pop {
+  animation: checkbox-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Strikethrough line draws left-to-right on completion */
+@keyframes strikethrough {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+.line-through-animated {
+  position: relative;
+  color: #9ca3af;
+}
+.line-through-animated::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 2px;
+  width: 0%;
+  background: #71717a;
+  animation: strikethrough 0.2s ease-out 0.1s forwards;
+}
+.dark .line-through-animated::after {
+  background: #a1a1aa;
+}
+
+/* Smooth sort-arrow rotation */
+.sort-arrow {
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+
+/* NeoBrutalism big-lift hover — for prominent cards */
+.brut-hover {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.brut-hover:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 0 #18181b;
+}
+.dark .brut-hover:hover {
+  box-shadow: 6px 6px 0 0 #ffffff;
+}
+
+/* ============================================================
+   DECORATIVE SHAPES & FUN UTILITIES
+   ============================================================ */
+
+/* Clip-path shape utilities */
+.clip-hex {
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+.clip-diamond {
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+.clip-star-4 {
+  clip-path: polygon(50% 0%, 61% 38%, 100% 50%, 61% 62%, 50% 100%, 39% 62%, 0% 50%, 39% 38%);
+}
+.clip-burst {
+  clip-path: polygon(
+    50% 0%,  54% 31%, 72% 10%, 65% 38%,
+    97% 32%, 73% 51%, 98% 65%, 67% 62%,
+    75% 93%, 52% 71%, 50% 100%, 48% 71%,
+    25% 93%, 33% 62%, 2%  65%, 27% 51%,
+    3%  32%, 35% 38%, 28% 10%, 46% 31%
+  );
+}
+.clip-notch {
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+.clip-pennant {
+  clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
+}
+
+/* Slow spin for decorative stars/bursts */
+@keyframes deco-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.deco-spin     { animation: deco-spin 12s linear infinite; }
+.deco-spin-rev { animation: deco-spin 18s linear infinite reverse; }
+
+/* Gentle float/wobble — three keyframe patterns × staggered speeds */
+@keyframes deco-float-a {
+  0%, 100% { transform: translateY(0px)  rotate(0deg); }
+  33%       { transform: translateY(-7px) rotate(6deg); }
+  66%       { transform: translateY(3px)  rotate(-4deg); }
+}
+@keyframes deco-float-b {
+  0%, 100% { transform: translateY(0px)  rotate(0deg)  scale(1); }
+  50%       { transform: translateY(-9px) rotate(12deg) scale(1.06); }
+}
+@keyframes deco-float-c {
+  0%, 100% { transform: translateY(0px)  translateX(0px)  rotate(0deg); }
+  33%       { transform: translateY(-4px) translateX(7px)  rotate(-8deg); }
+  66%       { transform: translateY(6px)  translateX(-5px) rotate(4deg); }
+}
+.deco-float   { animation: deco-float-a 5s   ease-in-out         infinite; }
+.deco-float-1 { animation: deco-float-a 4.5s ease-in-out 0.4s   infinite; }
+.deco-float-2 { animation: deco-float-b 6.2s ease-in-out 0.9s   infinite; }
+.deco-float-3 { animation: deco-float-c 5.8s ease-in-out 1.5s   infinite; }
+.deco-float-4 { animation: deco-float-a 7.1s ease-in-out 2.1s   infinite; }
+.deco-float-5 { animation: deco-float-b 4.8s ease-in-out 2.8s   infinite; }
+.deco-float-6 { animation: deco-float-c 6.5s ease-in-out 0.2s   infinite; }
+.deco-float-7 { animation: deco-float-a 5.3s ease-in-out 3.5s   infinite; }
+.deco-float-8 { animation: deco-float-b 7.8s ease-in-out 1.2s   infinite; }
+.deco-float-delay { animation: deco-float-a 5s ease-in-out 1.8s infinite; }
+
+/* ============================================================
+   EMBARK NEON WORDMARK
+   ============================================================ */
+.embark-glow {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #7c3aed;
+  text-shadow:
+    0 0 4px rgba(124, 58, 237, 0.6),
+    0 0 12px rgba(124, 58, 237, 0.45),
+    0 0 24px rgba(124, 58, 237, 0.3),
+    0 0 48px rgba(124, 58, 237, 0.12);
+  animation: embark-glow-breathe 3.5s ease-in-out infinite;
+}
+
+.dark .embark-glow {
+  color: #facc15;
+  text-shadow:
+    0 0 4px rgba(250, 204, 21, 0.8),
+    0 0 12px rgba(250, 204, 21, 0.6),
+    0 0 28px rgba(250, 204, 21, 0.4),
+    0 0 56px rgba(250, 204, 21, 0.15);
+}
+
+@keyframes embark-glow-breathe {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.35);
+  }
+}
+
+/* Organic blob border-radius */
+.shape-blob  { border-radius: 62% 38% 46% 54% / 55% 48% 52% 45%; }
+.shape-blob2 { border-radius: 42% 58% 37% 63% / 47% 52% 48% 53%; }
+
+/* Skewed parallelogram badge */
+.badge-slant {
+  transform: skewX(-8deg);
+  display: inline-flex;
+  align-items: center;
+}
+.badge-slant > * {
+  display: inline-block;
+  transform: skewX(8deg);
+}
+
+/* Zigzag horizontal rule */
+.zigzag-rule {
+  height: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='14' viewBox='0 0 40 14'%3E%3Cpath d='M0 14 L10 0 L20 14 L30 0 L40 14' fill='none' stroke='%2318181b' stroke-width='2.5'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: center;
+  background-size: 40px 14px;
+  opacity: 0.3;
+}
+.dark .zigzag-rule {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='14' viewBox='0 0 40 14'%3E%3Cpath d='M0 14 L10 0 L20 14 L30 0 L40 14' fill='none' stroke='%23ffffff' stroke-width='2.5'/%3E%3C/svg%3E");
+  opacity: 0.2;
+}
+
+/* ✦ prefix decoration for section headers */
+.deco-prefix::before {
+  content: '✦';
+  margin-right: 0.35em;
+  color: var(--theme-primary);
+  font-size: 0.75em;
+  display: inline-block;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Print Styles — Portal View
+   ═══════════════════════════════════════════════════════ */
+@media print {
+  /* Hide everything by default */
+  body > * {
+    display: none !important;
+  }
+
+  /* Show only portal content */
+  body.printing-portal > * {
+    display: block !important;
+  }
+
+  /* White background, black text */
+  body, html {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide interactive elements */
+  button,
+  [role="dialog"],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Prevent page breaks inside cards */
+  .bg-slate-50,
+  .rounded-2xl {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Ensure backgrounds print */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Header gradient visible in print */
+  .bg-gradient-to-r {
+    print-color-adjust: exact;
+  }
+}
