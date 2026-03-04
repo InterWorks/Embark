@@ -12,6 +12,7 @@ import { GamificationContext } from './GamificationContext';
 import { useAuth } from './AuthContext';
 import type { Client, ClientFormData, ChecklistItem, Service, ChecklistTemplate, Priority, Tag, Subtask, AutomationRule, AutomationTrigger, AutomationCondition, AutomationAction, Milestone, CommunicationLogEntry, FileAttachment, CustomFieldDefinition, NotesTemplate, TaskGroup, ClientContact, LifecycleStage, AccountInfo, OnboardingPhase } from '../types';
 import { emit } from '../events/appEvents';
+import { fire as fireWebhook } from '../services/webhooks';
 
 interface ClientContextType {
   clients: Client[];
@@ -69,7 +70,6 @@ interface ClientContextType {
   addAttachment: (clientId: string, file: Omit<FileAttachment, 'id' | 'uploadedAt'>) => void;
   removeAttachment: (clientId: string, attachmentId: string) => void;
   // Client note operations
-  addClientNote: (clientId: string, content: string, linkedDate?: string) => void;
   updateClientNote: (clientId: string, noteId: string, updates: Partial<{ content: string; isPinned: boolean; linkedDate: string }>) => void;
   deleteClientNote: (clientId: string, noteId: string) => void;
   togglePinNote: (clientId: string, noteId: string) => void;
@@ -227,7 +227,9 @@ export function ClientProvider({ children }: ClientProviderProps) {
 
   const addClient = useCallback((data: ClientFormData): Client => {
     const newClient = clientOperations.addClient(data);
-    emit({ type: 'client_created', clientId: newClient.id, clientName: newClient.name, timestamp: new Date().toISOString() });
+    const clientCreatedPayload = { clientId: newClient.id, clientName: newClient.name, timestamp: new Date().toISOString() };
+    emit({ type: 'client_created', ...clientCreatedPayload });
+    fireWebhook('client_created', clientCreatedPayload);
     executeAutomation('client_created', newClient);
     const activeCount = clientOperations.clients.filter(c => !c.archived && c.status === 'active').length + 1;
     gamification.trackClientAdded(newClient.id, activeCount);
@@ -240,7 +242,9 @@ export function ClientProvider({ children }: ClientProviderProps) {
     const client = clientOperations.clients.find(c => c.id === clientId);
     clientOperations.updateStatus(clientId, status);
     if (client) {
-      emit({ type: 'client_status_changed', clientId, clientName: client.name, oldStatus: client.status, newStatus: status, timestamp: new Date().toISOString() });
+      const statusPayload = { clientId, clientName: client.name, oldStatus: client.status, newStatus: status, timestamp: new Date().toISOString() };
+      emit({ type: 'client_status_changed', ...statusPayload });
+      fireWebhook('client_status_changed', statusPayload);
       executeAutomation('status_changed', { ...client, status });
     }
   }, [clientOperations, executeAutomation]);
@@ -306,7 +310,9 @@ export function ClientProvider({ children }: ClientProviderProps) {
 
     if (!client || !item || !isCompleting) return;
 
-    emit({ type: 'task_completed', clientId, clientName: client.name, taskId: itemId, taskTitle: item.title, timestamp: new Date().toISOString() });
+    const taskPayload = { clientId, clientName: client.name, taskId: itemId, taskTitle: item.title, timestamp: new Date().toISOString() };
+    emit({ type: 'task_completed', ...taskPayload });
+    fireWebhook('task_completed', taskPayload);
     notifyTaskCompleted(item.title, client.name, 'You', clientId, itemId);
 
     const updatedChecklist = client.checklist.map(i =>
@@ -347,13 +353,33 @@ export function ClientProvider({ children }: ClientProviderProps) {
     clientOperations.completeMilestone(clientId, milestoneId);
 
     if (isCompleting && milestone && client) {
-      emit({ type: 'milestone_reached', clientId, clientName: client.name, milestoneId, milestoneTitle: milestone.title, timestamp: new Date().toISOString() });
+      const milestonePayload = { clientId, clientName: client.name, milestoneId, milestoneTitle: milestone.title, timestamp: new Date().toISOString() };
+      emit({ type: 'milestone_reached', ...milestonePayload });
+      fireWebhook('milestone_reached', milestonePayload);
       notifyMilestoneReached(milestone.title, client.name, clientId);
       gamification.awardXP(25);
       gamification.trackMilestoneCompleted();
       gamification.trackDailyActivity();
     }
   }, [clientOperations, notifyMilestoneReached, gamification]);
+
+  const toggleSubtask = useCallback((clientId: string, itemId: string, subtaskId: string) => {
+    const client = clientOperations.clients.find(c => c.id === clientId);
+    const item = client?.checklist.find(i => i.id === itemId);
+    clientOperations.toggleSubtask(clientId, itemId, subtaskId);
+    // After toggling, check if all subtasks are now complete
+    if (item && !item.completed) {
+      const subtasks = item.subtasks ?? [];
+      const toggled = subtasks.find(s => s.id === subtaskId);
+      if (toggled && !toggled.completed) {
+        // We just completed this subtask — count how many are now done
+        const nowComplete = subtasks.filter(s => s.id === subtaskId ? true : s.completed).length;
+        if (nowComplete === subtasks.length && subtasks.length > 0) {
+          showToast(`All subtasks done! Mark "${item.title}" complete?`, 'info');
+        }
+      }
+    }
+  }, [clientOperations, showToast]);
 
   const addCommunication = useCallback((clientId: string, entry: Omit<CommunicationLogEntry, 'id' | 'timestamp'>) => {
     clientOperations.addCommunication(clientId, entry);
@@ -463,6 +489,7 @@ export function ClientProvider({ children }: ClientProviderProps) {
     addContact: clientOperations.addContact,
     updateContact: clientOperations.updateContact,
     removeContact: clientOperations.removeContact,
+    toggleSubtask,
     addCommunication,
     updateCustomField,
     ...templateOperations,

@@ -264,16 +264,24 @@ export function useClients() {
 
   const updateChecklistItem = useCallback((clientId: string, itemId: string, updates: Partial<ChecklistItem>) => {
     setClients((prev) =>
-      prev.map((client) =>
-        client.id === clientId
-          ? {
-              ...client,
-              checklist: client.checklist.map((item) =>
-                item.id === itemId ? { ...item, ...updates } : item
-              ),
-            }
-          : client
-      )
+      prev.map((client) => {
+        if (client.id !== clientId) return client;
+        const item = client.checklist.find(i => i.id === itemId);
+        const updatedChecklist = client.checklist.map(i => i.id === itemId ? { ...i, ...updates } : i);
+        let activityLog = client.activityLog;
+
+        // Log task_blocked / task_unblocked activity events
+        if (item && 'isBlocked' in updates) {
+          if (updates.isBlocked && !item.isBlocked) {
+            const by = (updates as Partial<ChecklistItem>).blockedBy ?? 'internal';
+            activityLog = [...activityLog, createLogEntry('task_blocked', `Task "${item.title}" blocked (${by})`)];
+          } else if (!updates.isBlocked && item.isBlocked) {
+            activityLog = [...activityLog, createLogEntry('task_unblocked', `Task "${item.title}" unblocked`)];
+          }
+        }
+
+        return { ...client, checklist: updatedChecklist, activityLog };
+      })
     );
   }, [setClients]);
 

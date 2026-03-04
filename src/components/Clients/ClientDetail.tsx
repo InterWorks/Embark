@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useToast } from '../UI/Toast';
 import type { Client, ClientFormData, Priority } from '../../types';
 import { useClientContext } from '../../context/ClientContext';
 import { useFavorites } from '../../hooks/useFavorites';
@@ -60,6 +61,7 @@ type ActivityViewMode = 'timeline' | 'list';
 
 export function ClientDetail({ client, onBack }: ClientDetailProps) {
   const { updateClient, deleteClient, archiveClient, restoreClient, duplicateClient, tags, completePhase, addClientNote, togglePinNote, updateLifecycleStage, updateStatus, gamification } = useClientContext() as ReturnType<typeof useClientContext> & { gamification?: { awardXP: (n: number) => void; trackClientGraduated: (id: string, opts: { perfect: boolean; daysToGraduate: number; checklistSize: number; clientName: string }) => void } };
+  const { showToast } = useToast();
   const { isFavorite, toggleFavorite } = useFavorites();
   const slaStatuses = useSLAStatuses([client]);
   const healthScore = computeHealthScore(client, slaStatuses);
@@ -132,6 +134,12 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
       onBack();
     }
   };
+
+  const handleCopyPortalUrl = useCallback(() => {
+    const url = `${window.location.origin}${window.location.pathname}#portal/${client.id}`;
+    navigator.clipboard.writeText(url);
+    showToast('Portal URL copied to clipboard', 'success');
+  }, [client.id, showToast]);
 
   const completedTasks = client.checklist.filter((t) => t.completed).length;
   const totalTasks = client.checklist.length;
@@ -228,6 +236,15 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
               </div>
               <p className="text-gray-500 dark:text-gray-400 mt-1">
                 Added {formatDate(client.createdAt)}
+                {client.communicationLog && client.communicationLog.length > 0 && (() => {
+                  const last = [...client.communicationLog].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+                  const days = Math.floor((Date.now() - new Date(last.timestamp).getTime()) / 86400000);
+                  return (
+                    <span className={`ml-2 text-xs ${days > 30 ? 'text-red-500 dark:text-red-400' : days > 14 ? 'text-amber-500 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                      · Last contact: {days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days}d ago`}
+                    </span>
+                  );
+                })()}
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -248,6 +265,12 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
               <Button variant="secondary" onClick={() => setShowPortal(true)}>
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.867V16a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                </svg>
+                Portal
+              </Button>
+              <Button variant="secondary" onClick={handleCopyPortalUrl}>
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
                 Share Portal
               </Button>
@@ -540,7 +563,7 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
                 ) : (
                   <DependencyGraph
                     tasks={client.checklist}
-                    onNodeClick={(taskId) => {
+                    onNodeClick={(_taskId) => {
                       setTaskViewMode('list');
                     }}
                   />

@@ -295,6 +295,7 @@ export function Checklist({ clientId, client, items, phases, onClientFilterClick
           phases={phases}
           selectedPhaseId={selectedPhaseId}
           onSelect={setSelectedPhaseId}
+          checklist={items}
         />
       )}
       {items.length > 0 && (

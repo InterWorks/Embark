@@ -135,7 +135,7 @@ export function layoutNodes(tasks: ChecklistItem[]): GraphLayout {
 
 function computeCriticalPath(
   tasks: ChecklistItem[],
-  dependents: Map<string, string[]>,
+  _dependents: Map<string, string[]>,
   column: Map<string, number>,
 ): string[] {
   // Find node with highest column (end of longest chain)

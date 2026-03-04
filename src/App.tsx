@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import type { ReactNode } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { AuthGate } from './components/Auth/AuthGate';
@@ -19,6 +20,8 @@ import { useWeeklyDigest } from './hooks/useWeeklyDigest';
 import { useGamificationContext } from './context/GamificationContext';
 import { WeeklyDigestModal } from './components/Dashboard/WeeklyDigestModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { MorningBriefing } from './components/Focus/MorningBriefing';
+import { ClientPortalView } from './components/Portal/ClientPortalView';
 import type { View, Client } from './types';
 import { useSLAStatuses } from './hooks/useSLA';
 import { emit } from './events/appEvents';
@@ -37,6 +40,7 @@ const AutomationManager = lazy(() => import('./components/Automations/Automation
 const HallOfHeroes = lazy(() => import('./components/Gamification/HallOfHeroes').then(m => ({ default: m.HallOfHeroes })));
 const ReportView = lazy(() => import('./components/Reports/ReportView').then(m => ({ default: m.ReportView })));
 const IntegrationsView = lazy(() => import('./components/Integrations/IntegrationsView').then(m => ({ default: m.IntegrationsView })));
+const FocusView = lazy(() => import('./components/Focus/FocusView').then(m => ({ default: m.FocusView })));
 
 function SLAMonitor({ clients }: { clients: Client[] }) {
   const slaStatuses = useSLAStatuses(clients);
@@ -95,6 +99,21 @@ function WebhookServiceInit() {
   }, []);
 
   return null;
+}
+
+function PortalRoute({ children }: { children: ReactNode }) {
+  const [portalClientId] = useState<string | null>(() => {
+    const match = window.location.hash.match(/^#portal\/(.+)$/);
+    return match ? match[1] : null;
+  });
+  const { clients } = useClientContext();
+
+  if (portalClientId) {
+    const client = clients.find(c => c.id === portalClientId);
+    if (client) return <ClientPortalView client={client} />;
+  }
+
+  return <>{children}</>;
 }
 
 function AppContent() {
@@ -200,6 +219,7 @@ function AppContent() {
             {currentView === 'hall-of-heroes' && <HallOfHeroes />}
             {currentView === 'reports' && <ReportView />}
             {currentView === 'integrations' && <IntegrationsView />}
+            {currentView === 'focus' && <FocusView onSelectClient={handleSelectClient} />}
           </Suspense>
         </div>
         <FloatingActionButton onAddClient={handleAddClient} />
@@ -221,6 +241,7 @@ function AppContent() {
       {digestOpen && <WeeklyDigestModal digest={digest} onClose={handleCloseDigest} />}
       <SLAMonitor clients={clients} />
       <WebhookServiceInit />
+      <MorningBriefing />
     </UndoRedoProvider>
   );
 }
@@ -243,9 +264,11 @@ function App() {
         <ErrorBoundary>
           <ToastProvider>
             <ClientProvider>
-              <AuthGate>
-                <AppContent />
-              </AuthGate>
+              <PortalRoute>
+                <AuthGate>
+                  <AppContent />
+                </AuthGate>
+              </PortalRoute>
             </ClientProvider>
           </ToastProvider>
         </ErrorBoundary>

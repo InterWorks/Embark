@@ -1050,7 +1050,7 @@ function PriorityBar({ label, count, total, color }: { label: string; count: num
   );
 }
 
-type ActivityType = 'created' | 'status_changed' | 'task_completed' | 'task_added' | 'note_updated' | 'priority_changed' | 'tag_added' | 'tag_removed' | 'archived' | 'restored' | 'duplicated' | 'attachment_added' | 'attachment_removed' | 'communication_logged' | 'milestone_added' | 'milestone_completed' | 'milestone_updated' | 'custom_field_updated';
+type ActivityType = 'created' | 'status_changed' | 'task_completed' | 'task_added' | 'note_updated' | 'priority_changed' | 'tag_added' | 'tag_removed' | 'archived' | 'restored' | 'duplicated' | 'attachment_added' | 'attachment_removed' | 'communication_logged' | 'milestone_added' | 'milestone_completed' | 'milestone_updated' | 'custom_field_updated' | 'phase_advanced' | 'client_graduated' | 'task_blocked' | 'task_unblocked';
 
 function ActivityIcon({ type }: { type: ActivityType }) {
   const iconMap: Record<ActivityType, ReactNode> = {
@@ -1177,6 +1177,34 @@ function ActivityIcon({ type }: { type: ActivityType }) {
       <div className="p-1.5 bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-400 rounded-full">
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+        </svg>
+      </div>
+    ),
+    phase_advanced: (
+      <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        </svg>
+      </div>
+    ),
+    client_graduated: (
+      <div className="p-1.5 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400 rounded-full">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+    ),
+    task_blocked: (
+      <div className="p-1.5 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+        </svg>
+      </div>
+    ),
+    task_unblocked: (
+      <div className="p-1.5 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
         </svg>
       </div>
     ),

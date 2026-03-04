@@ -18,11 +18,13 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@sentry/react": "^10.40.0",
     "@types/canvas-confetti": "^1.9.0",
+    "@types/qrcode": "^1.5.6",
     "@xyflow/react": "^12.10.1",
     "canvas-confetti": "^1.9.4",
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.563.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "xlsx": "^0.18.5"

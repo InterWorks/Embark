@@ -1,4 +1,6 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useState, useCallback } from 'react';
+import QRCode from 'qrcode';
+import confetti from 'canvas-confetti';
 import type { Client } from '../../types';
 import { getClientHealth, HEALTH_COLORS } from '../../utils/clientHealth';
 import { SLABadge } from '../SLA/SLABadge';
@@ -25,6 +27,38 @@ export function ClientPortalView({ client }: ClientPortalViewProps) {
     return [...slaStatuses].sort((a, b) => order[a.status] - order[b.status])[0];
   }, [slaStatuses]);
 
+  const portalUrl = `${window.location.origin}${window.location.pathname}#portal/${client.id}`;
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [emailCopied, setEmailCopied] = useState(false);
+
+  // Generate QR code
+  useEffect(() => {
+    QRCode.toDataURL(portalUrl, { width: 128, margin: 1 }).then(setQrDataUrl).catch(() => {});
+  }, [portalUrl]);
+
+  // Phase completion confetti — once per phase per client
+  useEffect(() => {
+    const celebratedKey = `embark_celebrated_${client.id}`;
+    const celebrated: string[] = JSON.parse(localStorage.getItem(celebratedKey) ?? '[]');
+    const phases = client.phases ?? [];
+    let newlyCelebrated = false;
+    const toAdd: string[] = [];
+
+    for (const phase of phases) {
+      if (celebrated.includes(phase.id)) continue;
+      const phaseItems = client.checklist.filter(t => t.phaseId === phase.id);
+      if (phaseItems.length > 0 && phaseItems.every(t => t.completed)) {
+        toAdd.push(phase.id);
+        newlyCelebrated = true;
+      }
+    }
+
+    if (newlyCelebrated) {
+      localStorage.setItem(celebratedKey, JSON.stringify([...celebrated, ...toAdd]));
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+    }
+  }, [client.id, client.phases, client.checklist]);
+
   // Print setup: hide non-portal elements during print
   useEffect(() => {
     const handleBeforePrint = () => document.body.classList.add('printing-portal');
@@ -36,6 +70,50 @@ export function ClientPortalView({ client }: ClientPortalViewProps) {
       window.removeEventListener('afterprint', handleAfterPrint);
     };
   }, []);
+
+  const handleCopyEmail = useCallback(() => {
+    const phases = [...(client.phases ?? [])].sort((a, b) => a.order - b.order);
+    const completedPhases = phases.filter(p => p.completedAt).map(p => p.name);
+    const currentPhase = phases.find(p => !p.completedAt);
+    const currentPhaseItems = currentPhase
+      ? client.checklist.filter(t => t.phaseId === currentPhase.id)
+      : [];
+    const currentPct = currentPhaseItems.length > 0
+      ? Math.round(currentPhaseItems.filter(t => t.completed).length / currentPhaseItems.length * 100)
+      : 0;
+    const remaining = client.checklist.filter(t => !t.completed).length;
+    const nextMilestone = (client.milestones ?? []).find(m => !m.completedAt);
+
+    const lines = [
+      `Hi ${client.name},`,
+      '',
+      `Here's a quick update on your onboarding progress:`,
+      '',
+      completedPhases.length > 0 ? `✅ Completed phases: ${completedPhases.join(', ')}` : null,
+      currentPhase ? `🔄 In progress: ${currentPhase.name} (${currentPct}% complete)` : null,
+      `📋 Tasks remaining: ${remaining}`,
+      nextMilestone ? `🎯 Next milestone: ${nextMilestone.title}` : null,
+      '',
+      `View your full onboarding portal: ${portalUrl}`,
+    ].filter(l => l !== null).join('\n');
+
+    navigator.clipboard.writeText(lines);
+    setEmailCopied(true);
+    setTimeout(() => setEmailCopied(false), 2500);
+  }, [client, portalUrl]);
+
+  const handleDownloadQR = useCallback(() => {
+    if (!qrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    a.download = `${client.name.replace(/\s+/g, '-')}-portal-qr.png`;
+    a.click();
+  }, [qrDataUrl, client.name]);
+
+  const lastActivity = client.activityLog[client.activityLog.length - 1];
+  const lastUpdated = lastActivity
+    ? new Date(lastActivity.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
 
   const completedCount = client.checklist.filter(t => t.completed).length;
   const totalCount = client.checklist.length;
@@ -122,17 +200,34 @@ export function ClientPortalView({ client }: ClientPortalViewProps) {
               </div>
             </div>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="print:hidden flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-semibold transition-colors flex-shrink-0"
-            title="Print this page"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            Print
-          </button>
+          <div className="print:hidden flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+            <button
+              onClick={handleCopyEmail}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-semibold transition-colors"
+              title="Copy progress email to clipboard"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              {emailCopied ? 'Copied!' : 'Copy Email'}
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-semibold transition-colors"
+              title="Print this page"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              Print
+            </button>
+          </div>
         </div>
+        {lastUpdated && (
+          <div className="max-w-2xl mx-auto mt-3 text-xs text-white/60">
+            Last updated: {lastUpdated}
+          </div>
+        )}
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
@@ -371,6 +466,27 @@ export function ClientPortalView({ client }: ClientPortalViewProps) {
                   <span className="text-sm text-slate-700">{a.memberId}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+        {/* QR Code */}
+        {qrDataUrl && (
+          <div className="bg-slate-50 rounded-2xl p-6 print:hidden">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Share This Portal</h2>
+            <div className="flex items-center gap-6 flex-wrap">
+              <img src={qrDataUrl} alt="Portal QR Code" className="w-24 h-24 rounded-lg border border-slate-200" />
+              <div className="space-y-2">
+                <p className="text-sm text-slate-600">Scan to open this portal on any device</p>
+                <button
+                  onClick={handleDownloadQR}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download QR
+                </button>
+              </div>
             </div>
           </div>
         )}

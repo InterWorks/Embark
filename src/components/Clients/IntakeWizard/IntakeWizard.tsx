@@ -75,6 +75,7 @@ export function IntakeWizard({ isOpen, onClose }: IntakeWizardProps) {
       phone: c.phone || undefined,
       title: c.title || undefined,
       isPrimary: c.isPrimary,
+      createdAt: new Date().toISOString(),
     }));
 
     const clientAssignments: ClientAssignment[] = assignments

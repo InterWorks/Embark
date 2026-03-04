@@ -42,6 +42,9 @@ export interface CommunicationLogEntry {
   participants?: string[];
   duration?: number;       // Minutes
   timestamp: string;
+  followUpDate?: string;   // ISO date for follow-up reminder
+  linkedTaskId?: string;   // Links to a checklist item
+  followUpResolved?: boolean; // Mark follow-up as done
 }
 
 // Milestones
@@ -171,7 +174,7 @@ export interface ActivityLogEntry {
       | 'priority_changed' | 'tag_added' | 'tag_removed' | 'archived' | 'restored' | 'duplicated'
       | 'attachment_added' | 'attachment_removed' | 'communication_logged'
       | 'milestone_added' | 'milestone_completed' | 'milestone_updated' | 'custom_field_updated'
-      | 'phase_advanced' | 'client_graduated';
+      | 'phase_advanced' | 'client_graduated' | 'task_blocked' | 'task_unblocked';
   description: string;
   timestamp: string;
   metadata?: Record<string, string>;
@@ -273,7 +276,7 @@ export type ClientFormData = Omit<Client, 'id' | 'createdAt' | 'services' | 'che
   contacts?: ClientContact[];
 };
 
-export type View = 'dashboard' | 'clients' | 'templates' | 'tasks' | 'planner' | 'notes' | 'ai' | 'marketplace' | 'team' | 'automations' | 'hall-of-heroes' | 'reports' | 'integrations';
+export type View = 'dashboard' | 'clients' | 'templates' | 'tasks' | 'planner' | 'notes' | 'ai' | 'marketplace' | 'team' | 'automations' | 'hall-of-heroes' | 'reports' | 'integrations' | 'focus';
 
 // Calendar Integration
 export type CalendarProvider = 'google' | 'microsoft';

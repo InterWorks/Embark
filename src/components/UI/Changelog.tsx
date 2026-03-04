@@ -12,6 +12,25 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: '6.0.0',
+    date: 'March 4, 2026',
+    title: 'Embark Elevated',
+    changes: [
+      { type: 'feature', description: 'Focus Mode — new 3-column view surfacing overdue tasks, at-risk clients, and pending follow-ups across all clients in one triage dashboard' },
+      { type: 'feature', description: 'Morning Briefing — once-per-day slide-in panel summarizing overdue tasks, clients needing attention, and follow-ups due this week' },
+      { type: 'feature', description: 'Subtask System — any checklist item can have inline subtasks with progress chip ("2/5 subtasks"); completing all subtasks prompts marking the parent done' },
+      { type: 'feature', description: 'Blocker System — mark tasks as blocked (client / internal / external) with an optional reason; blocked badge with tooltip, and phase headers show blocked count' },
+      { type: 'feature', description: 'Communication Timeline — grouped log with date sections (Today / Yesterday / This Week), follow-up countdown chips, linked task references, and inline quick-log form' },
+      { type: 'feature', description: 'Shareable Client Portal URL — hash-based portal links (/#portal/{id}) bypass auth and work as direct share links; "Share Portal" button copies URL to clipboard' },
+      { type: 'feature', description: 'Copy Progress Email — one-click generation of a formatted client update email with phase summary, progress percentage, and portal link; copies to clipboard' },
+      { type: 'feature', description: 'Portal QR Code — each client portal shows a QR code for the shareable URL with a one-click PNG download' },
+      { type: 'feature', description: 'Phase Completion Confetti — completing all tasks in a phase fires a confetti burst in the portal view; each phase is only celebrated once per client' },
+      { type: 'feature', description: 'Backend-Ready Services Layer — webhooks, email, and calendar now have clean service modules with localStorage adapters today and a defined swap point for real API calls' },
+      { type: 'improvement', description: 'Webhook delivery log is now populated in real time when client_created, task_completed, milestone_reached, and status_changed events fire' },
+      { type: 'improvement', description: '"Last contact: X days ago" summary in client detail header — amber if > 14 days, red if > 30 days' },
+    ],
+  },
+  {
     version: '5.0.0',
     date: 'March 4, 2026',
     title: 'Personalized Embark',
@@ -180,7 +199,7 @@ export function Changelog({ isCollapsed = false }: ChangelogProps) {
         {!isCollapsed && <span className="font-medium text-sm">What's New</span>}
         {!isCollapsed && (
           <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-violet-500 to-purple-600 text-white">
-            v5.0
+            v6.0
           </span>
         )}
       </button>

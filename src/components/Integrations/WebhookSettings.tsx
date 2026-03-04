@@ -20,6 +20,8 @@ const EVENT_LABELS: Record<AppEventType, string> = {
   automation_fired: 'Automation Fired',
   webhook_delivered: 'Webhook Delivered',
   webhook_failed: 'Webhook Failed',
+  graduation_ready: 'Graduation Ready',
+  phase_advanced: 'Phase Advanced',
 };
 
 interface EndpointFormState {
