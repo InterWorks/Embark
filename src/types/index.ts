@@ -141,6 +141,13 @@ export interface OnboardingPhase {
   completedAt?: string; // ISO — set when all tasks in phase are done
 }
 
+export type EmbedType = 'loom' | 'youtube' | 'calendly' | 'typeform' | 'iframe';
+
+export interface EmbedMedia {
+  type: EmbedType;
+  url: string;
+}
+
 export type TaskStatus = 'todo' | 'in-progress' | 'blocked' | 'done';
 
 export interface TimeEntry {
@@ -174,6 +181,12 @@ export interface ChecklistItem {
   timeEntries?: TimeEntry[];
   attachments?: FileAttachment[];
   priority?: Priority;
+  embed?: EmbedMedia;
+  requiresApproval?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionNote?: string;
 }
 
 export type Priority = 'high' | 'medium' | 'low' | 'none';
@@ -278,6 +291,28 @@ export interface Client {
   account?: AccountInfo;
   phases?: OnboardingPhase[];
   targetGoLiveDate?: string; // ISO date YYYY-MM-DD
+  successPlan?: SuccessPlan;
+}
+
+export interface SuccessPlanTask {
+  id: string;
+  title: string;
+  completed: boolean;
+  dueDate?: string;
+  category: 'adoption' | 'qbr' | 'expansion' | 'renewal-prep' | 'custom';
+  notes?: string;
+}
+
+export interface SuccessPlan {
+  id: string;
+  createdAt: string;
+  templateName: string;  // e.g., "90-Day Success Plan"
+  tasks: SuccessPlanTask[];
+  adoptionPct?: number;        // 0-100
+  mrrExpansion?: number;       // In cents
+  qbrCompleted?: boolean;
+  npsTarget?: number;          // Target NPS score
+  notes?: string;
 }
 
 export interface ChecklistTemplate {
@@ -377,7 +412,8 @@ export type AutomationTrigger =
   | 'task_completed'
   | 'all_tasks_completed'
   | 'priority_changed'
-  | 'tag_added';
+  | 'tag_added'
+  | 'phase_completed';
 
 export type AutomationActionType =
   | 'change_status'
@@ -385,7 +421,23 @@ export type AutomationActionType =
   | 'add_tag'
   | 'add_task'
   | 'apply_template'
-  | 'send_notification';
+  | 'send_notification'
+  | 'send_email_sequence';
+
+export interface EmailSequenceStep {
+  templateId: string;  // ID of EmailTemplate
+  delayDays: number;   // 0 = immediate, 1 = next day, etc.
+}
+
+export interface EmailQueueItem {
+  id: string;
+  clientId: string;
+  templateId: string;
+  scheduledFor: string;  // ISO datetime
+  status: 'pending' | 'sent' | 'cancelled';
+  sequenceId?: string;   // Automation rule ID
+  createdAt: string;
+}
 
 export interface AutomationCondition {
   field: 'status' | 'priority' | 'has_tag' | 'task_count' | 'completed_percentage';
@@ -422,6 +474,7 @@ export interface TeamMember {
   jobTitle?: string;
   phone?: string;
   hourlyRate?: number;
+  capacityLimit?: number;
   createdAt: string;
   lastActiveAt?: string;
 }

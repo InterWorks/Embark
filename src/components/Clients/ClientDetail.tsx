@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../UI/Toast';
-import type { Client, ClientFormData, Priority } from '../../types';
+import type { Client, ClientFormData, Priority, SuccessPlan } from '../../types';
 import { useClientContext } from '../../context/ClientContext';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
@@ -34,13 +34,17 @@ import { PhaseManager } from '../Phases/PhaseManager';
 import { PhaseGateButton } from '../Phases/PhaseGateButton';
 import { HealthScoreBadge } from './HealthScoreBadge';
 import { HealthPulsePanel } from './HealthPulsePanel';
+import { useEngagementScore } from '../../hooks/useEngagementScore';
 import { AIRiskBrief } from '../AI/AIRiskBrief';
 import { NextActionBanner } from './NextActionBanner';
 import { GraduationModal } from './GraduationModal';
+import { SuccessPlanPanel } from './SuccessPlan';
 import { KickoffPackModal } from './KickoffPackModal';
 import { DependencyGraph } from '../Checklist/DependencyGraph';
 import { ClientTaskKanban } from './ClientTaskKanban';
 import { ClientTimeReport } from './ClientTimeReport';
+import { StatusReportModal } from './StatusReportModal';
+import { MeetingBriefModal } from './MeetingBriefModal';
 
 interface ClientDetailProps {
   client: Client;
@@ -70,6 +74,7 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
   const slaStatuses = useSLAStatuses([client]);
   const healthScore = computeHealthScore(client, slaStatuses);
   const nextAction = computeNextAction(client, slaStatuses);
+  const engagementScore = useEngagementScore(client);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
@@ -78,9 +83,12 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
   const [showPhaseManager, setShowPhaseManager] = useState(false);
   const [showGraduationModal, setShowGraduationModal] = useState(false);
   const [showKickoffPack, setShowKickoffPack] = useState(false);
+  const [showStatusReport, setShowStatusReport] = useState(false);
+  const [showMeetingBrief, setShowMeetingBrief] = useState(false);
   const [taskViewMode, setTaskViewMode] = useLocalStorage<TaskViewMode>('task-view-mode', 'tables');
   const [activityViewMode, setActivityViewMode] = useLocalStorage<ActivityViewMode>('activity-view-mode', 'timeline');
   const [urlCopied, setUrlCopied] = useState(false);
+  const [npsCopied, setNpsCopied] = useState(false);
   const isClientFavorite = isFavorite(client.id);
 
   // Subscribe to graduation_ready event for this client
@@ -96,7 +104,7 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
     });
   }, [client.id, client.activityLog]);
 
-  const handleGraduationConfirm = (summary: string) => {
+  const handleGraduationConfirm = (summary: string, successPlan?: SuccessPlan) => {
     setShowGraduationModal(false);
     if (summary) {
       const noteId = addClientNote(client.id, `Graduation Summary:\n${summary}`);
@@ -104,6 +112,9 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
     }
     updateLifecycleStage(client.id, 'active-client');
     updateStatus(client.id, 'completed');
+    if (successPlan) {
+      updateClient(client.id, { successPlan });
+    }
     const daysToGraduate = Math.round((Date.now() - new Date(client.createdAt).getTime()) / 86400000);
     const hasOverdue = client.checklist.some(i => !i.completed && i.dueDate && new Date(i.dueDate) < new Date());
     gamification?.trackClientGraduated(client.id, {
@@ -113,6 +124,10 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
       clientName: client.name,
     });
     gamification?.awardXP(75);
+  };
+
+  const handleSuccessPlanUpdate = (plan: SuccessPlan) => {
+    updateClient(client.id, { successPlan: plan });
   };
 
   const handleUpdate = (data: ClientFormData) => {
@@ -146,6 +161,14 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
     setUrlCopied(true);
     setTimeout(() => setUrlCopied(false), 2000);
     showToast('Portal URL copied to clipboard', 'success');
+  }, [client.id, showToast]);
+
+  const handleCopyNpsSurveyUrl = useCallback(() => {
+    const url = `${window.location.origin}${window.location.pathname}#survey/${client.id}`;
+    navigator.clipboard.writeText(url);
+    setNpsCopied(true);
+    setTimeout(() => setNpsCopied(false), 2000);
+    showToast('NPS survey URL copied to clipboard', 'success');
   }, [client.id, showToast]);
 
   const completedTasks = client.checklist.filter((t) => t.completed).length;
@@ -240,6 +263,25 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
                   </span>
                 )}
                 <HealthScoreBadge score={healthScore} />
+                <span
+                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                    engagementScore.tier === 'high'
+                      ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                      : engagementScore.tier === 'medium'
+                        ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                        : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700'
+                  }`}
+                  title="Engagement Score — based on portal activity, client task completion, communication recency, and task responsiveness"
+                >
+                  <span className="font-black">{engagementScore.total}</span>
+                  <span>
+                    {engagementScore.tier === 'high'
+                      ? 'High Engagement'
+                      : engagementScore.tier === 'medium'
+                        ? 'Med Engagement'
+                        : 'Low Engagement'}
+                  </span>
+                </span>
               </div>
               <p className="text-gray-500 dark:text-gray-400 mt-1">
                 Added {formatDate(client.createdAt)}
@@ -255,6 +297,18 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
+              <Button variant="secondary" onClick={() => setShowStatusReport(true)}>
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Status Report
+              </Button>
+              <Button variant="secondary" onClick={() => setShowMeetingBrief(true)}>
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Meeting Brief
+              </Button>
               {client.lifecycleStage === 'onboarding' && (
                 <Button variant="secondary" onClick={() => setShowKickoffPack(true)}>
                   <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -303,6 +357,43 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
                   </>
                 )}
               </Button>
+              <div className="inline-flex items-center gap-2">
+                <Button variant="secondary" onClick={handleCopyNpsSurveyUrl}>
+                  {npsCopied ? (
+                    <>
+                      <svg className="w-4 h-4 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                      Request NPS Survey
+                    </>
+                  )}
+                </Button>
+                {client.account?.npsScore !== undefined && (() => {
+                  const score = client.account.npsScore!;
+                  const label = score >= 9 ? 'Promoter' : score >= 7 ? 'Passive' : 'Detractor';
+                  const badgeClass = score >= 9
+                    ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700'
+                    : score >= 7
+                      ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700'
+                      : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700';
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold border ${badgeClass}`}
+                      title={`NPS Score: ${score}/10`}
+                    >
+                      <span className="font-black">{score}</span>
+                      <span>{label}</span>
+                    </span>
+                  );
+                })()}
+              </div>
               <Button variant="secondary" onClick={() => setShowPhaseManager(true)}>
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -630,6 +721,20 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
                 )}
               </div>
               <AttachmentManager clientId={client.id} attachments={client.attachments} />
+
+              {/* Success Plan — shown for active clients */}
+              {client.lifecycleStage === 'active-client' && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                    <span>🏆</span>
+                    Success Plan
+                  </h3>
+                  <SuccessPlanPanel
+                    client={client}
+                    onUpdate={handleSuccessPlanUpdate}
+                  />
+                </div>
+              )}
             </div>
             <div className="space-y-6">
               <CustomFieldRenderer clientId={client.id} customFields={client.customFields} />
@@ -775,6 +880,20 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
           client={client}
           onConfirm={handleGraduationConfirm}
           onDismiss={() => setShowGraduationModal(false)}
+        />
+      )}
+
+      {showStatusReport && (
+        <StatusReportModal
+          client={client}
+          onClose={() => setShowStatusReport(false)}
+        />
+      )}
+
+      {showMeetingBrief && (
+        <MeetingBriefModal
+          client={client}
+          onClose={() => setShowMeetingBrief(false)}
         />
       )}
 

@@ -37,7 +37,7 @@ const FOCUS_BUD: Bud = {
 };
 
 export function FocusView({ onSelectClient }: FocusViewProps) {
-  const { overdueTasks, atRiskClients, pendingFollowUps, counts } = useFocus();
+  const { overdueTasks, atRiskClients, pendingFollowUps, pendingApprovals, counts } = useFocus();
   const [riskBudClient, setRiskBudClient] = useState<Client | null>(null);
 
   return (
@@ -50,11 +50,40 @@ export function FocusView({ onSelectClient }: FocusViewProps) {
         </p>
       </div>
 
-      {counts.overdue === 0 && counts.atRisk === 0 && counts.followUps === 0 && (
+      {counts.overdue === 0 && counts.atRisk === 0 && counts.followUps === 0 && counts.pendingApprovals === 0 && (
         <div className="glass-card p-8 text-center">
           <div className="text-4xl mb-3">✅</div>
           <p className="text-lg font-semibold gradient-text">All clear!</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">No overdue tasks, no clients at risk, no pending follow-ups.</p>
+        </div>
+      )}
+
+      {/* Pending Approvals */}
+      {pendingApprovals.length > 0 && (
+        <div className="glass-card p-5">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center mb-4">
+            <span>✍ Pending Approvals</span>
+            <CountBadge count={counts.pendingApprovals} color="bg-amber-500" />
+          </h2>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {pendingApprovals.map(({ task, client }) => (
+              <div
+                key={`${client.id}-${task.id}`}
+                className="glass-subtle p-3 rounded-xl hover:bg-white/60 dark:hover:bg-white/15 transition-all cursor-pointer"
+                onClick={() => onSelectClient?.(client)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{task.title}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{client.name}</p>
+                  </div>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 whitespace-nowrap flex-shrink-0">
+                    Awaiting client approval
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

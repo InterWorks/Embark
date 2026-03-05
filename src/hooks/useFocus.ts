@@ -18,15 +18,22 @@ export interface PendingFollowUp {
   client: Client;
 }
 
+export interface PendingApprovalTask {
+  task: ChecklistItem;
+  client: Client;
+}
+
 export interface FocusData {
   overdueTasks: OverdueTask[];
   atRiskClients: AtRiskClient[];
   pendingFollowUps: PendingFollowUp[];
+  pendingApprovals: PendingApprovalTask[];
   counts: {
     overdue: number;
     atRisk: number;
     followUps: number;
     followUpsThisWeek: number;
+    pendingApprovals: number;
   };
 }
 
@@ -45,6 +52,8 @@ export function useFocus(): FocusData {
     const atRiskClients: AtRiskClient[] = [];
     // Pending follow-ups
     const pendingFollowUps: PendingFollowUp[] = [];
+    // Pending approvals
+    const pendingApprovals: PendingApprovalTask[] = [];
 
     for (const client of clients) {
       if (client.archived) continue;
@@ -97,6 +106,17 @@ export function useFocus(): FocusData {
           pendingFollowUps.push({ entry, client });
         }
       }
+
+      // Pending approvals — tasks that require approval and are not yet approved/rejected
+      for (const task of client.checklist) {
+        if (
+          task.requiresApproval &&
+          !task.completed &&
+          (task.approvalStatus === 'pending' || task.approvalStatus === undefined)
+        ) {
+          pendingApprovals.push({ task, client });
+        }
+      }
     }
 
     // Sort overdue tasks by days overdue desc
@@ -113,11 +133,13 @@ export function useFocus(): FocusData {
       overdueTasks,
       atRiskClients,
       pendingFollowUps,
+      pendingApprovals,
       counts: {
         overdue: overdueTasks.length,
         atRisk: atRiskClients.length,
         followUps: pendingFollowUps.length,
         followUpsThisWeek,
+        pendingApprovals: pendingApprovals.length,
       },
     };
   }, [clients]);

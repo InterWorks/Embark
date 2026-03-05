@@ -3,10 +3,13 @@ import type { Client } from '../../types';
 import type { ClientSLAStatus } from '../../types/sla';
 import { useAIRiskBrief, type RiskTier } from '../../hooks/useAIRiskBrief';
 import { formatRelativeTime } from '../../utils/helpers';
+import type { HealthSnapshot } from '../../hooks/useHealthHistory';
+import { computeChurnRisk } from '../../hooks/useChurnRisk';
 
 interface AIRiskBriefProps {
   client: Client;
   slaStatuses: ClientSLAStatus[];
+  sparklineSnapshots?: HealthSnapshot[];
 }
 
 const tierStyles: Record<RiskTier, { badge: string; label: string; pulse?: boolean }> = {
@@ -16,10 +19,14 @@ const tierStyles: Record<RiskTier, { badge: string; label: string; pulse?: boole
   Critical: { badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',                 label: 'Critical', pulse: true },
 };
 
-export function AIRiskBrief({ client, slaStatuses }: AIRiskBriefProps) {
+export function AIRiskBrief({ client, slaStatuses, sparklineSnapshots }: AIRiskBriefProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { brief, riskTier, generatedAt, isLoading, error, refresh } = useAIRiskBrief(client, slaStatuses);
   const tierStyle = tierStyles[riskTier];
+
+  const churnRisk = sparklineSnapshots && sparklineSnapshots.length >= 2
+    ? computeChurnRisk(sparklineSnapshots, sparklineSnapshots[sparklineSnapshots.length - 1].score)
+    : null;
 
   // Strip the [TIER: X] prefix from display
   const displayBrief = brief.replace(/^\[TIER:\s*\w+\]\s*/i, '').trim();
@@ -36,6 +43,11 @@ export function AIRiskBrief({ client, slaStatuses }: AIRiskBriefProps) {
           {brief && (
             <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${tierStyle.badge} ${tierStyle.pulse ? 'animate-pulse' : ''}`}>
               {tierStyle.label}
+            </span>
+          )}
+          {churnRisk && churnRisk.level !== 'stable' && (
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${churnRisk.color}`}>
+              {churnRisk.label}
             </span>
           )}
           {generatedAt && (

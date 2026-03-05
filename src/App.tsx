@@ -23,6 +23,7 @@ import { WeeklyDigestModal } from './components/Dashboard/WeeklyDigestModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { MorningBriefing } from './components/Focus/MorningBriefing';
 import { ClientPortalView } from './components/Portal/ClientPortalView';
+import { NPSSurveyView } from './components/Survey/NPSSurveyView';
 import type { View, Client } from './types';
 import { useSLAStatuses } from './hooks/useSLA';
 import { useAnomalyDetection } from './hooks/useAnomalyDetection';
@@ -109,6 +110,18 @@ function WebhookServiceInit() {
   }, []);
 
   return null;
+}
+
+function SurveyRoute({ children }: { children: ReactNode }) {
+  const [surveyClientId] = useState<string | null>(() => {
+    const match = window.location.hash.match(/^#survey\/(.+)$/);
+    return match ? match[1] : null;
+  });
+
+  if (surveyClientId) {
+    return <NPSSurveyView clientId={surveyClientId} />;
+  }
+  return <>{children}</>;
 }
 
 function PortalRoute({ children }: { children: ReactNode }) {
@@ -280,11 +293,13 @@ function App() {
           <ToastProvider>
             <ClientProvider>
               <FormRoute>
-                <PortalRoute>
-                  <AuthGate>
-                    <AppContent />
-                  </AuthGate>
-                </PortalRoute>
+                <SurveyRoute>
+                  <PortalRoute>
+                    <AuthGate>
+                      <AppContent />
+                    </AuthGate>
+                  </PortalRoute>
+                </SurveyRoute>
               </FormRoute>
             </ClientProvider>
           </ToastProvider>

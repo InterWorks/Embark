@@ -127,13 +127,52 @@ export function usePortalWriter(clientId: string) {
     reader.readAsDataURL(file);
   }, [clientId]);
 
+  const updateApproval = useCallback((
+    taskId: string,
+    approval: {
+      approvalStatus: 'approved' | 'rejected';
+      approvedBy?: string;
+      approvedAt?: string;
+      rejectionNote?: string;
+    }
+  ) => {
+    const clients = readClients();
+    const updated = clients.map(c => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        checklist: c.checklist.map(item => {
+          if (item.id !== taskId) return item;
+          const patch: Partial<typeof item> = { ...approval };
+          if (approval.approvalStatus === 'approved') {
+            patch.completed = true;
+            patch.status = 'done';
+          }
+          return { ...item, ...patch };
+        }),
+        activityLog: [
+          ...c.activityLog,
+          {
+            id: generateId(),
+            type: 'task_completed' as const,
+            description: approval.approvalStatus === 'approved'
+              ? `Task approved via client portal`
+              : `Changes requested via client portal`,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      };
+    });
+    writeClients(updated);
+  }, [clientId]);
+
   const logPortalView = useCallback(() => {
     const key = `${PORTAL_VIEWS_PREFIX}${clientId}`;
     const entry = { viewedAt: new Date().toISOString() };
     localStorage.setItem(key, JSON.stringify(entry));
   }, [clientId]);
 
-  return { completeTask, addComment, addStatusUpdate, attachFile, logPortalView };
+  return { completeTask, addComment, addStatusUpdate, attachFile, logPortalView, updateApproval };
 }
 
 export function getPortalLastView(clientId: string): string | null {

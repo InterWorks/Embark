@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ClientFormData, ClientContact, ClientAssignment } from '../../../types';
+import type { ClientFormData, ClientContact, ClientAssignment, OnboardingPhase, ChecklistItem } from '../../../types';
 import { useClientContext } from '../../../context/ClientContext';
 import { buildTasksFromTemplate } from '../../../utils/helpers';
 import { Button } from '../../UI/Button';
@@ -15,7 +15,7 @@ interface IntakeWizardProps {
 const STEPS = ['Client Info', 'Template', 'Team'];
 
 export function IntakeWizard({ isOpen, onClose }: IntakeWizardProps) {
-  const { addClient, addChecklistItemWithData, templates } = useClientContext();
+  const { addClient, addChecklistItemWithData, updateClient, templates } = useClientContext();
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
@@ -24,6 +24,7 @@ export function IntakeWizard({ isOpen, onClose }: IntakeWizardProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [assignments, setAssignments] = useState<AssignmentEntry[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [aiPlan, setAIPlan] = useState<{ phases: OnboardingPhase[]; tasks: ChecklistItem[] } | null>(null);
 
   if (!isOpen) return null;
 
@@ -36,6 +37,7 @@ export function IntakeWizard({ isOpen, onClose }: IntakeWizardProps) {
     setSelectedTemplateId(null);
     setAssignments([]);
     setErrors({});
+    setAIPlan(null);
     onClose();
   };
 
@@ -105,8 +107,21 @@ export function IntakeWizard({ isOpen, onClose }: IntakeWizardProps) {
 
     const newClient = addClient(formData);
 
-    // Apply template tasks
-    if (selectedTemplateId) {
+    if (aiPlan) {
+      // Apply AI-generated phases first, then tasks
+      updateClient(newClient.id, { phases: aiPlan.phases });
+      aiPlan.tasks.forEach(task => {
+        addChecklistItemWithData(newClient.id, {
+          title: task.title,
+          completed: false,
+          dueDate: task.dueDate,
+          phaseId: task.phaseId,
+          ownerType: task.ownerType,
+          priority: task.priority,
+        });
+      });
+    } else if (selectedTemplateId) {
+      // Apply template tasks
       const template = templates.find(t => t.id === selectedTemplateId);
       if (template) {
         const tasks = buildTasksFromTemplate(template, goLiveDate || undefined);
@@ -175,6 +190,8 @@ export function IntakeWizard({ isOpen, onClose }: IntakeWizardProps) {
                 selectedTemplateId={selectedTemplateId}
                 setSelectedTemplateId={setSelectedTemplateId}
                 goLiveDate={goLiveDate}
+                aiPlan={aiPlan}
+                setAIPlan={setAIPlan}
               />
             )}
             {step === 2 && (

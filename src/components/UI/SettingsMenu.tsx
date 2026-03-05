@@ -3,9 +3,10 @@ import { useTheme, colorThemes, type ColorTheme } from '../../context/ThemeConte
 import { Modal } from './Modal';
 import { AISettingsPanel } from '../AI/AISettingsPanel';
 import { NotificationPreferences } from '../Notifications/NotificationPreferences';
+import { BrandingSettings } from '../Settings/BrandingSettings';
 import { KeepWatchLogo } from './KeepWatchLogo';
 
-type SettingsTab = 'appearance' | 'ai' | 'notifications';
+type SettingsTab = 'appearance' | 'ai' | 'notifications' | 'branding';
 
 export function SettingsMenu() {
   const { mode, colorTheme, setMode, setColorTheme } = useTheme();
@@ -67,6 +68,16 @@ export function SettingsMenu() {
             }`}
           >
             Notifications
+          </button>
+          <button
+            onClick={() => setActiveTab('branding')}
+            className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'branding'
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            Branding
           </button>
         </div>
 
@@ -180,6 +191,10 @@ export function SettingsMenu() {
 
         {activeTab === 'notifications' && (
           <NotificationPreferences />
+        )}
+
+        {activeTab === 'branding' && (
+          <BrandingSettings />
         )}
       </Modal>
     </>

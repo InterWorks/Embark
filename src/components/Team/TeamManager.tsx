@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTeam } from '../../hooks/useTeam';
 import { useAssignmentRoles } from '../../hooks/useAssignmentRoles';
 import { TeamMemberAvatar } from './TeamMemberAvatar';
+import { CapacityView } from '../Views/CapacityView';
 import type { TeamMember, TeamRole, AssignmentRole, Team } from '../../types';
 
 const roleLabels: Record<TeamRole, string> = {
@@ -18,7 +19,7 @@ const roleDescriptions: Record<TeamRole, string> = {
   viewer: 'Read-only access',
 };
 
-type TabType = 'members' | 'roles';
+type TabType = 'members' | 'roles' | 'capacity';
 
 export function TeamManager() {
   const {
@@ -336,6 +337,16 @@ export function TeamManager() {
               >
                 Assignment Roles
               </button>
+              <button
+                onClick={() => setActiveTab('capacity')}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  activeTab === 'capacity'
+                    ? 'bg-white dark:bg-gray-700 text-violet-600 dark:text-violet-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                Capacity
+              </button>
             </div>
 
             {activeTab === 'members' && (
@@ -401,6 +412,11 @@ export function TeamManager() {
                   </div>
                 )}
               </>
+            )}
+
+            {/* Capacity Tab */}
+            {activeTab === 'capacity' && (
+              <CapacityView />
             )}
 
             {/* Assignment Roles Tab */}

@@ -15,6 +15,9 @@ import { useAuth } from '../../context/AuthContext';
 import type { View, Priority, LifecycleStage, Client, DashboardWidgetId } from '../../types';
 import { DEFAULT_DASHBOARD_WIDGETS } from '../../types';
 import { getClientHealth, HEALTH_COLORS } from '../../utils/clientHealth';
+import { computeEngagementScore } from '../../utils/engagementScore';
+import { computeGoLiveForecast } from '../../utils/goLiveForecast';
+import { computeChurnRisk } from '../../hooks/useChurnRisk';
 
 interface DashboardProps {
   onNavigate: (view: View) => void;
@@ -67,6 +70,19 @@ export function Dashboard({ onNavigate, onOpenDigest, onSelectClient }: Dashboar
     [activeClients]
   );
 
+  const engagementLeaderboard = useMemo(() => {
+    if (activeClients.length < 4) return null;
+    const scored = activeClients.map((c) => ({
+      client: c,
+      score: computeEngagementScore(c),
+    }));
+    const sorted = [...scored].sort((a, b) => b.score.total - a.score.total);
+    return {
+      top: sorted.slice(0, 3).filter((x) => x.score.tier === 'high'),
+      bottom: [...scored].sort((a, b) => a.score.total - b.score.total).slice(0, 3).filter((x) => x.score.tier === 'low' || x.score.tier === 'medium'),
+    };
+  }, [activeClients]);
+
   const stats = {
     total: activeClients.length,
     active: activeClients.filter((c) => c.status === 'active').length,
@@ -91,6 +107,17 @@ export function Dashboard({ onNavigate, onOpenDigest, onSelectClient }: Dashboar
     .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
 
   const completionRate = allTasks.length > 0 ? Math.round((completedTasks / allTasks.length) * 100) : 0;
+
+  // On-Time Forecast: percentage of clients with a target go-live date that are on track
+  const onTimeForecastPct = useMemo(() => {
+    const clientsWithTarget = activeClients.filter((c) => c.targetGoLiveDate && c.status !== 'completed');
+    if (clientsWithTarget.length === 0) return null;
+    const onTrackCount = clientsWithTarget.filter((c) => {
+      const forecast = computeGoLiveForecast(c);
+      return forecast.status === 'on-track';
+    }).length;
+    return Math.round((onTrackCount / clientsWithTarget.length) * 100);
+  }, [activeClients]);
 
   const recentClients = [...activeClients]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -212,6 +239,17 @@ export function Dashboard({ onNavigate, onOpenDigest, onSelectClient }: Dashboar
     return Math.round(totalDays / completedClients.length);
   }, [activeClients]);
 
+  // NPS Overview
+  const npsOverview = useMemo(() => {
+    const respondents = activeClients.filter((c) => c.account?.npsScore !== undefined);
+    if (respondents.length < 3) return null;
+    const promoters = respondents.filter((c) => c.account!.npsScore! >= 9).length;
+    const passives = respondents.filter((c) => c.account!.npsScore! >= 7 && c.account!.npsScore! <= 8).length;
+    const detractors = respondents.filter((c) => c.account!.npsScore! <= 6).length;
+    const npsScore = Math.round(((promoters - detractors) / respondents.length) * 100);
+    return { npsScore, promoters, passives, detractors, total: respondents.length };
+  }, [activeClients]);
+
   // CRM data
   const hasCrmData = useMemo(
     () => activeClients.some((c) => c.lifecycleStage),
@@ -250,6 +288,21 @@ export function Dashboard({ onNavigate, onOpenDigest, onSelectClient }: Dashboar
     const declined = [...withDelta].sort((a, b) => a.delta - b.delta).slice(0, 3).filter(x => x.delta < 0);
     return { improved, declined };
   }, [activeClients, getDelta, getHistory, getTrend]);
+
+  const churnWatchClients = useMemo(() => {
+    return activeClients
+      .map(c => {
+        const snapshots = getHistory(c.id);
+        const trend = getTrend(c.id);
+        if (trend !== 'down') return null;
+        const currentScore = snapshots.length > 0 ? snapshots[snapshots.length - 1].score : 50;
+        const churnRisk = computeChurnRisk(snapshots, currentScore);
+        return { client: c, currentScore, churnRisk };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => a.currentScore - b.currentScore)
+      .slice(0, 5);
+  }, [activeClients, getHistory, getTrend]);
 
   const renewalsSoon = useMemo(() => {
     const now = Date.now();
@@ -335,6 +388,100 @@ export function Dashboard({ onNavigate, onOpenDigest, onSelectClient }: Dashboar
         </div>
       )}
 
+      {/* Churn Watch */}
+      {show('client-health') && churnWatchClients.length > 0 && (
+        <div className="glass-card p-5">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span className="w-2.5 h-2.5 clip-diamond bg-orange-500 animate-pulse inline-block flex-shrink-0" />
+            Churn Watch
+          </h2>
+          <div className="space-y-2">
+            {churnWatchClients.map(({ client, currentScore, churnRisk }) => (
+              <button
+                key={client.id}
+                onClick={() => onNavigate?.('clients')}
+                className="w-full flex items-center justify-between gap-3 p-2.5 rounded-[4px] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm text-orange-500 flex-shrink-0">&#8595;</span>
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{client.name}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{currentScore}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${churnRisk.color}`}>
+                    {churnRisk.label}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Engagement Watch */}
+      {show('client-health') && engagementLeaderboard && (engagementLeaderboard.top.length > 0 || engagementLeaderboard.bottom.length > 0) && (
+        <div className="glass-card p-5">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span className="w-2.5 h-2.5 clip-diamond bg-violet-500 inline-block flex-shrink-0" />
+            Engagement Watch
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {engagementLeaderboard.top.length > 0 && (
+              <div>
+                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2">
+                  Most Engaged
+                </p>
+                <div className="space-y-1.5">
+                  {engagementLeaderboard.top.map(({ client, score }) => (
+                    <button
+                      key={client.id}
+                      onClick={() => onSelectClient?.(client)}
+                      className="w-full flex items-center justify-between gap-3 p-2 rounded-[4px] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-left"
+                    >
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                        {client.name}
+                      </span>
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex-shrink-0">
+                        <span className="font-black">{score.total}</span>
+                        <span>High</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {engagementLeaderboard.bottom.length > 0 && (
+              <div>
+                <p className="text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-wider mb-2">
+                  Least Engaged
+                </p>
+                <div className="space-y-1.5">
+                  {engagementLeaderboard.bottom.map(({ client, score }) => (
+                    <button
+                      key={client.id}
+                      onClick={() => onSelectClient?.(client)}
+                      className="w-full flex items-center justify-between gap-3 p-2 rounded-[4px] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-left"
+                    >
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                        {client.name}
+                      </span>
+                      <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border flex-shrink-0 ${
+                        score.tier === 'low'
+                          ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700'
+                          : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                      }`}>
+                        <span className="font-black">{score.total}</span>
+                        <span>{score.tier === 'low' ? 'Low' : 'Med'}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Stats Cards */}
       {show('stats-bar') && !isReady && <DashboardStatsSkeleton />}
       {show('stats-bar') && isReady && <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -378,7 +525,57 @@ export function Dashboard({ onNavigate, onOpenDigest, onSelectClient }: Dashboar
           }
           color="indigo"
         />
+        {onTimeForecastPct !== null && (
+          <StatCard
+            title="On-Time Forecast"
+            value={`${onTimeForecastPct}%`}
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            }
+            color="green"
+          />
+        )}
       </div>}
+
+      {/* NPS Overview */}
+      {npsOverview && (
+        <div className="glass-card p-5">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span className="w-2.5 h-2.5 clip-diamond bg-indigo-500 inline-block flex-shrink-0" />
+            NPS Overview
+          </h2>
+          <div className="flex items-center gap-6 flex-wrap">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">NPS Score</p>
+              <p className={`text-3xl font-black ${npsOverview.npsScore >= 50 ? 'text-green-600 dark:text-green-400' : npsOverview.npsScore >= 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
+                {npsOverview.npsScore >= 0 ? '+' : ''}{npsOverview.npsScore}
+              </p>
+            </div>
+            <div className="flex items-center gap-4 text-sm flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
+                <span className="text-gray-600 dark:text-gray-400">Promoters</span>
+                <span className="font-bold text-gray-900 dark:text-white">{npsOverview.promoters}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block" />
+                <span className="text-gray-600 dark:text-gray-400">Passives</span>
+                <span className="font-bold text-gray-900 dark:text-white">{npsOverview.passives}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+                <span className="text-gray-600 dark:text-gray-400">Detractors</span>
+                <span className="font-bold text-gray-900 dark:text-white">{npsOverview.detractors}</span>
+              </div>
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {npsOverview.total} respondent{npsOverview.total !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CRM Panel */}
       {show('crm-panel') && hasCrmData && (

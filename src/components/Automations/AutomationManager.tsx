@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAutomations, triggerConfig, actionConfig } from '../../hooks/useAutomations';
 import { useTemplates } from '../../hooks/useTemplates';
-import type { AutomationRule, AutomationTrigger, AutomationActionType, AutomationCondition, AutomationAction } from '../../types';
+import { useEmailTemplates } from '../../hooks/useEmailTemplates';
+import type { AutomationRule, AutomationTrigger, AutomationActionType, AutomationCondition, AutomationAction, EmailSequenceStep } from '../../types';
 
 export function AutomationManager() {
   const {
@@ -284,18 +285,82 @@ interface AutomationFormModalProps {
   onClose: () => void;
 }
 
+function SequenceVisualizer({ steps, emailTemplates }: {
+  steps: EmailSequenceStep[];
+  emailTemplates: Array<{ id: string; name: string }>;
+}) {
+  if (steps.length === 0) return null;
+
+  return (
+    <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+        Sequence Timeline
+      </p>
+      <div className="flex items-start gap-0 overflow-x-auto pb-2">
+        {steps.map((step, index) => {
+          const template = emailTemplates.find(t => t.id === step.templateId);
+          return (
+            <div key={index} className="flex items-center flex-shrink-0">
+              {/* Node */}
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/40 border-2 border-violet-400 dark:border-violet-500 flex items-center justify-center text-xs font-bold text-violet-700 dark:text-violet-300">
+                  {index + 1}
+                </div>
+                <div className="mt-1 max-w-[80px] text-center">
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
+                    {template ? template.name : 'Unknown'}
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    {step.delayDays === 0 ? 'Immediately' : `Day ${step.delayDays}`}
+                  </p>
+                </div>
+              </div>
+              {/* Connector */}
+              {index < steps.length - 1 && (
+                <div className="flex items-center mx-1 mb-6">
+                  <div className="w-8 h-px bg-violet-300 dark:bg-violet-600" />
+                  <svg className="w-3 h-3 text-violet-400 dark:text-violet-500 -ml-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AutomationFormModal({ rule, onSave, onClose }: AutomationFormModalProps) {
   const { templates } = useTemplates();
+  const { templates: emailTemplates } = useEmailTemplates();
   const [name, setName] = useState(rule?.name || '');
   const [trigger, setTrigger] = useState<AutomationTrigger>(rule?.trigger || 'client_created');
   const [conditions, setConditions] = useState<AutomationCondition[]>(rule?.conditions || []);
   const [actionType, setActionType] = useState<AutomationActionType>(rule?.action.type || 'send_notification');
   const [actionValue, setActionValue] = useState(rule?.action.value || '');
 
+  // Parse existing sequence steps if editing a send_email_sequence rule
+  const parseInitialSteps = (): EmailSequenceStep[] => {
+    if (rule?.action.type === 'send_email_sequence' && rule.action.value) {
+      try {
+        return JSON.parse(rule.action.value);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+  const [sequenceSteps, setSequenceSteps] = useState<EmailSequenceStep[]>(parseInitialSteps);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave(name.trim(), trigger, conditions, { type: actionType, value: actionValue });
+    const finalValue = actionType === 'send_email_sequence'
+      ? JSON.stringify(sequenceSteps)
+      : actionValue;
+    onSave(name.trim(), trigger, conditions, { type: actionType, value: finalValue });
   };
 
   const addCondition = () => {
@@ -308,6 +373,19 @@ function AutomationFormModal({ rule, onSave, onClose }: AutomationFormModalProps
 
   const removeCondition = (index: number) => {
     setConditions(conditions.filter((_, i) => i !== index));
+  };
+
+  const addSequenceStep = () => {
+    const firstTemplateId = emailTemplates[0]?.id || '';
+    setSequenceSteps(prev => [...prev, { templateId: firstTemplateId, delayDays: 0 }]);
+  };
+
+  const updateSequenceStep = (index: number, updates: Partial<EmailSequenceStep>) => {
+    setSequenceSteps(prev => prev.map((s, i) => i === index ? { ...s, ...updates } : s));
+  };
+
+  const removeSequenceStep = (index: number) => {
+    setSequenceSteps(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -465,64 +543,126 @@ function AutomationFormModal({ rule, onSave, onClose }: AutomationFormModalProps
             </div>
 
             {/* Action Value */}
-            <div>
-              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
-                {actionType === 'change_status' && 'New status:'}
-                {actionType === 'change_priority' && 'New priority:'}
-                {actionType === 'add_tag' && 'Tag to add:'}
-                {actionType === 'add_task' && 'Task title:'}
-                {actionType === 'apply_template' && 'Template to apply:'}
-                {actionType === 'send_notification' && 'Notification message:'}
-              </label>
-              {actionType === 'change_status' ? (
-                <select
-                  value={actionValue}
-                  onChange={(e) => setActionValue(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="">Select status...</option>
-                  <option value="active">Active</option>
-                  <option value="on-hold">On Hold</option>
-                  <option value="completed">Completed</option>
-                </select>
-              ) : actionType === 'change_priority' ? (
-                <select
-                  value={actionValue}
-                  onChange={(e) => setActionValue(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="">Select priority...</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              ) : actionType === 'apply_template' ? (
-                <select
-                  value={actionValue}
-                  onChange={(e) => setActionValue(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="">Select template...</option>
-                  {templates.map(template => (
-                    <option key={template.id} value={template.id}>
-                      {template.name} ({template.items.length} tasks)
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={actionValue}
-                  onChange={(e) => setActionValue(e.target.value)}
-                  placeholder={
-                    actionType === 'add_tag' ? 'e.g., VIP' :
-                    actionType === 'add_task' ? 'e.g., Send welcome email' :
-                    'e.g., New client needs attention'
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              )}
-            </div>
+            {actionType === 'send_email_sequence' ? (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm text-gray-600 dark:text-gray-400">
+                    Email sequence steps:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addSequenceStep}
+                    className="text-sm text-violet-600 dark:text-violet-400 hover:underline"
+                  >
+                    + Add Step
+                  </button>
+                </div>
+                {sequenceSteps.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                    No steps yet — click "+ Add Step" to begin
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {sequenceSteps.map((step, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <span className="w-5 h-5 flex-shrink-0 rounded-full bg-violet-100 dark:bg-violet-900/40 border border-violet-400 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center">
+                          {index + 1}
+                        </span>
+                        <select
+                          value={step.templateId}
+                          onChange={(e) => updateSequenceStep(index, { templateId: e.target.value })}
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                          <option value="">Select template...</option>
+                          {emailTemplates.map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <input
+                            type="number"
+                            min={0}
+                            value={step.delayDays}
+                            onChange={(e) => updateSequenceStep(index, { delayDays: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                            className="w-14 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center"
+                          />
+                          <span className="text-xs text-gray-500 dark:text-gray-400">days</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSequenceStep(index)}
+                          className="p-1 text-gray-400 hover:text-red-500"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <SequenceVisualizer steps={sequenceSteps} emailTemplates={emailTemplates} />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  {actionType === 'change_status' && 'New status:'}
+                  {actionType === 'change_priority' && 'New priority:'}
+                  {actionType === 'add_tag' && 'Tag to add:'}
+                  {actionType === 'add_task' && 'Task title:'}
+                  {actionType === 'apply_template' && 'Template to apply:'}
+                  {actionType === 'send_notification' && 'Notification message:'}
+                </label>
+                {actionType === 'change_status' ? (
+                  <select
+                    value={actionValue}
+                    onChange={(e) => setActionValue(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select status...</option>
+                    <option value="active">Active</option>
+                    <option value="on-hold">On Hold</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                ) : actionType === 'change_priority' ? (
+                  <select
+                    value={actionValue}
+                    onChange={(e) => setActionValue(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select priority...</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                ) : actionType === 'apply_template' ? (
+                  <select
+                    value={actionValue}
+                    onChange={(e) => setActionValue(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select template...</option>
+                    {templates.map(template => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} ({template.items.length} tasks)
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={actionValue}
+                    onChange={(e) => setActionValue(e.target.value)}
+                    placeholder={
+                      actionType === 'add_tag' ? 'e.g., VIP' :
+                      actionType === 'add_task' ? 'e.g., Send welcome email' :
+                      'e.g., New client needs attention'
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                )}
+              </div>
+            )}
           </div>
         </form>
 

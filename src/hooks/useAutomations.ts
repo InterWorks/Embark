@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
-import type { AutomationRule, AutomationAction, AutomationCondition, AutomationTrigger, Client } from '../types';
+import type { AutomationRule, AutomationAction, AutomationCondition, AutomationTrigger, Client, EmailSequenceStep } from '../types';
 import { useLocalStorage } from './useLocalStorage';
+import { useEmailQueue } from './useEmailQueue';
 import { generateId } from '../utils/helpers';
 
 export interface AutomationLog {
@@ -19,6 +20,7 @@ export interface AutomationLog {
 export function useAutomations() {
   const [rules, setRules] = useLocalStorage<AutomationRule[]>('onboarding-automations', []);
   const [logs, setLogs] = useLocalStorage<AutomationLog[]>('embark-automation-logs', []);
+  const { enqueue } = useEmailQueue();
 
   const addRule = useCallback((
     name: string,
@@ -131,6 +133,31 @@ export function useAutomations() {
     return newRule;
   }, [rules, setRules]);
 
+  // Evaluate a send_email_sequence action for a given client and automation rule
+  const evaluateSendEmailSequence = useCallback((
+    action: AutomationAction,
+    clientId: string,
+    sequenceId: string
+  ): void => {
+    if (action.type !== 'send_email_sequence') return;
+    try {
+      const steps: EmailSequenceStep[] = JSON.parse(action.value);
+      const now = Date.now();
+      for (const step of steps) {
+        const scheduledFor = new Date(now + step.delayDays * 86400000).toISOString();
+        enqueue({
+          clientId,
+          templateId: step.templateId,
+          scheduledFor,
+          status: 'pending',
+          sequenceId,
+        });
+      }
+    } catch {
+      // Invalid JSON in action.value — skip silently
+    }
+  }, [enqueue]);
+
   // Get enabled count
   const enabledCount = useMemo(() => {
     return rules.filter(r => r.enabled).length;
@@ -149,6 +176,7 @@ export function useAutomations() {
     getRulesForTrigger,
     logExecution,
     clearLogs,
+    evaluateSendEmailSequence,
   };
 }
 
@@ -184,6 +212,11 @@ export const triggerConfig: Record<AutomationTrigger, { label: string; descripti
     description: 'When a tag is added to a client',
     icon: '🏷️',
   },
+  phase_completed: {
+    label: 'Phase Completed',
+    description: 'When an onboarding phase is completed',
+    icon: '📋',
+  },
 };
 
 // Action labels and descriptions
@@ -217,5 +250,10 @@ export const actionConfig: Record<string, { label: string; description: string; 
     label: 'Send Notification',
     description: 'Send an in-app notification',
     icon: '🔔',
+  },
+  send_email_sequence: {
+    label: 'Send Email Sequence',
+    description: 'Queue a series of emails with delays',
+    icon: '✉️',
   },
 };
