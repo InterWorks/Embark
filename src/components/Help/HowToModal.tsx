@@ -1181,6 +1181,49 @@ const articles: HowToArticle[] = [
     ),
   },
   {
+    id: 'email-bulk-import',
+    category: 'Team & More',
+    title: 'Email Bulk Import & Contact Export',
+    icon: '📧',
+    summary: 'Create clients from a list of emails, export all contacts to CSV',
+    content: (
+      <div className="space-y-5">
+        <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+          The Data tab in Settings lets you paste a list of email addresses and Embark will
+          automatically group them by domain into named client drafts — so you can onboard a whole
+          batch of contacts without going through the intake wizard one at a time.
+        </p>
+        <div>
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-2">How to bulk import</h3>
+          <ol className="space-y-2 text-sm text-gray-600 dark:text-gray-300 list-decimal list-inside">
+            <li>Open <span className="font-medium text-gray-900 dark:text-white">Settings → Data</span>.</li>
+            <li>Paste email addresses into the text box — separate them with newlines, commas, or semicolons.</li>
+            <li>Click <span className="font-medium text-gray-900 dark:text-white">Parse Emails</span>. Embark groups them by domain (e.g. all <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">@acme.com</code> addresses become one "Acme" draft).</li>
+            <li>In the preview, rename any client draft and fill in a contact name for each email (required).</li>
+            <li>Use the radio button to mark which contact is primary per group.</li>
+            <li>If a domain already has a client in Embark, a yellow <span className="font-medium text-yellow-700 dark:text-yellow-400">EXISTS</span> badge appears — those contacts will be added to the existing client instead of creating a duplicate.</li>
+            <li>Click <span className="font-medium text-gray-900 dark:text-white">Create / Add contacts</span> to confirm. Embark creates the new clients and contacts in one action.</li>
+          </ol>
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Export all contact emails</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Click <span className="font-medium text-gray-900 dark:text-white">Export All Contact Emails</span> in the Data tab to download a CSV with one row per contact across every client.
+            Columns: Client Name, Contact Name, Email, Title, Is Primary, Phone.
+          </p>
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Tips</h3>
+          <ul className="space-y-1.5 text-sm text-gray-600 dark:text-gray-300 list-disc list-inside">
+            <li>Invalid emails (no @ sign, missing domain, etc.) are shown in a warning list and skipped — they won't block the rest of the import.</li>
+            <li>Duplicate emails in your paste are automatically deduplicated.</li>
+            <li>You can rename the auto-generated client name (e.g. change "Interworks" to "InterWorks, Inc.") before confirming.</li>
+          </ul>
+        </div>
+      </div>
+    ),
+  },
+  {
     id: 'settings',
     category: 'Team & More',
     title: 'Settings & Preferences',

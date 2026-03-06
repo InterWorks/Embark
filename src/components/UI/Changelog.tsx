@@ -12,6 +12,17 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: '8.1.0',
+    date: 'March 6, 2026',
+    title: 'Email Bulk Import & Contact Export',
+    changes: [
+      { type: 'feature', description: 'Email Bulk Import — paste a list of emails in Settings → Data; Embark groups them by domain into named client drafts, flags domains that already exist, and creates clients + contacts in one action' },
+      { type: 'feature', description: 'Contact Name & Primary fields — preview screen lets you rename each client draft and fill in contact names before confirming; radio button marks the primary contact per group' },
+      { type: 'feature', description: 'Export All Contact Emails — Downloads a CSV of every contact email across all clients (Client Name, Contact Name, Email, Title, Is Primary, Phone); falls back to the legacy client email for older records' },
+      { type: 'improvement', description: 'New Data tab in Settings consolidates import and export tools in one place' },
+    ],
+  },
+  {
     version: '8.0.0',
     date: 'March 5, 2026',
     title: 'Embark Ascendant',

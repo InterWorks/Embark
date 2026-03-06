@@ -9,7 +9,7 @@
 [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Tests](https://img.shields.io/badge/Tests-52_passing-22c55e?style=for-the-badge)](#)
-[![Version](https://img.shields.io/badge/Version-8.0-f59e0b?style=for-the-badge)](#)
+[![Version](https://img.shields.io/badge/Version-8.1-f59e0b?style=for-the-badge)](#)
 [![PWA](https://img.shields.io/badge/PWA-installable-a855f7?style=for-the-badge)](#)
 
 *Embark replaces the chaos of spreadsheets and scattered notes with a structured, gamified system that keeps every client onboarding on track — from first call to go-live.*
@@ -31,7 +31,19 @@ Most onboarding tools are either too simple (a checklist app) or too complex (an
 
 ---
 
-## 🆕 What's New in v8.0 — "Embark Ascendant"
+## 🆕 What's New in v8.1 — Email Bulk Import & Contact Export
+
+Onboard a whole batch of contacts without going through the intake wizard one at a time.
+
+### 📧 Email Bulk Import
+Paste a list of emails into **Settings → Data**. Embark groups them by domain into named client drafts, flags any domain that already has a client (so you never create duplicates), lets you fill in contact names and mark the primary contact, then creates everything in one click.
+
+### 📤 Export All Contact Emails
+Download a clean CSV of every contact email across all clients — Client Name, Contact Name, Email, Title, Is Primary, Phone. Falls back to the legacy client email for older records.
+
+---
+
+## 🔖 Previous: v8.0 — "Embark Ascendant"
 
 Embark v8.0 is a full competitive upgrade — closing every gap against Rocketlane, Arrows.to, GUIDEcx, and ChurnZero with 14 new features across four tiers.
 
@@ -73,7 +85,7 @@ After graduation, create a **90-Day or Annual Success Plan** with Adoption, QBR,
 
 ---
 
-## 🔖 Previous: v7.0 — "Embark Unstoppable"
+## 🔖 Previous: v7.0 — "Embark Unstoppable" (scroll up for v8.0)
 
 ### 🗂️ Global Task Kanban Board
 A full **drag-and-drop task board** spanning every active client. Four columns — To Do, In Progress, Blocked, Done. Filter down to specific clients so the board stays focused instead of showing hundreds of cards. Click any card to open a slide-in drawer with subtasks, comments, and status controls. Every client also gets its own board tab in their detail view.
@@ -209,7 +221,8 @@ Open [http://localhost:5173](http://localhost:5173), register an account, and th
 | 📱 PWA | Install to desktop, works offline |
 | 🌗 Dark Mode | Full dark/light theme support |
 | ⌨️ Command Palette | `Ctrl+K` global search and navigation |
-| 📤 Export | Excel status reports, HTML client portals |
+| 📧 Email Bulk Import | Paste emails → auto-group by domain → create clients + contacts in one action |
+| 📤 Export | Excel status reports, HTML client portals, contact email CSV |
 | 🔔 SLA Tracking | Warnings and breach alerts per client |
 | 📝 Notes & Comms | Rich notes with templates + full communication history with AI Draft |
 | 🪄 Milestones | Key events tracked separately from tasks |
