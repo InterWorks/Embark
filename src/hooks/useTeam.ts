@@ -15,8 +15,8 @@ const TEAM_COLORS = [
   '#84CC16', // Lime
 ];
 
-// Migration: Check for old single-team format and convert
-function migrateFromOldFormat(): Team[] | null {
+// Migration: Check for old single-team format and convert — runs once at module load
+(() => {
   const oldData = localStorage.getItem('embark-team');
   const newData = localStorage.getItem('embark-teams');
 
@@ -30,19 +30,16 @@ function migrateFromOldFormat(): Team[] | null {
         members: oldTeam.members || [],
         createdAt: new Date().toISOString(),
       };
-      return [migratedTeam];
+      localStorage.setItem('embark-teams', JSON.stringify([migratedTeam]));
+      localStorage.removeItem('embark-team');
     } catch {
-      return null;
+      // ignore parse errors
     }
   }
-  return null;
-}
+})();
 
 export function useTeam() {
-  // Check for migration on initial load
-  const migratedTeams = useMemo(() => migrateFromOldFormat(), []);
-
-  const [teams, setTeams] = useLocalStorage<Team[]>('embark-teams', migratedTeams || []);
+  const [teams, setTeams] = useLocalStorage<Team[]>('embark-teams', []);
   const [selectedTeamId, setSelectedTeamId] = useLocalStorage<string | null>('embark-selected-team', null);
   const [currentUserId, setCurrentUserId] = useLocalStorage<string | null>('embark-current-user', null);
 
@@ -101,15 +98,12 @@ export function useTeam() {
 
   // Delete a team
   const deleteTeam = useCallback((teamId: string) => {
-    setTeams(prev => {
-      const filtered = prev.filter(t => t.id !== teamId);
-      // If we deleted the selected team, select another one
-      if (selectedTeamId === teamId && filtered.length > 0) {
-        setSelectedTeamId(filtered[0].id);
-      }
-      return filtered;
-    });
-  }, [setTeams, selectedTeamId, setSelectedTeamId]);
+    setTeams(prev => prev.filter(t => t.id !== teamId));
+    if (selectedTeamId === teamId) {
+      const remaining = teams.filter(t => t.id !== teamId);
+      if (remaining.length > 0) setSelectedTeamId(remaining[0].id);
+    }
+  }, [teams, selectedTeamId, setTeams, setSelectedTeamId]);
 
   // Select a team
   const selectTeam = useCallback((teamId: string) => {

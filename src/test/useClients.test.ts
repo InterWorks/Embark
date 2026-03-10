@@ -171,7 +171,7 @@ describe('useClients', () => {
       });
     });
 
-    const stored = JSON.parse(localStorage.getItem('onboarding-clients') ?? '[]');
+    const stored = JSON.parse(localStorage.getItem('embark-clients') ?? '[]');
     expect(stored).toHaveLength(1);
     expect(stored[0].name).toBe('Persist Test');
   });

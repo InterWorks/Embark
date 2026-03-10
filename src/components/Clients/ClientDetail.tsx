@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '../UI/Toast';
 import type { Client, ClientFormData, Priority, SuccessPlan } from '../../types';
 import { useClientContext } from '../../context/ClientContext';
@@ -89,6 +89,15 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
   const [activityViewMode, setActivityViewMode] = useLocalStorage<ActivityViewMode>('activity-view-mode', 'timeline');
   const [urlCopied, setUrlCopied] = useState(false);
   const [npsCopied, setNpsCopied] = useState(false);
+  const copyPortalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyNpsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyPortalTimerRef.current) clearTimeout(copyPortalTimerRef.current);
+      if (copyNpsTimerRef.current) clearTimeout(copyNpsTimerRef.current);
+    };
+  }, []);
   const isClientFavorite = isFavorite(client.id);
 
   // Subscribe to graduation_ready event for this client
@@ -159,7 +168,7 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
     const url = `${window.location.origin}${window.location.pathname}#portal/${client.id}`;
     navigator.clipboard.writeText(url);
     setUrlCopied(true);
-    setTimeout(() => setUrlCopied(false), 2000);
+    copyPortalTimerRef.current = setTimeout(() => setUrlCopied(false), 2000);
     showToast('Portal URL copied to clipboard', 'success');
   }, [client.id, showToast]);
 
@@ -167,7 +176,7 @@ export function ClientDetail({ client, onBack }: ClientDetailProps) {
     const url = `${window.location.origin}${window.location.pathname}#survey/${client.id}`;
     navigator.clipboard.writeText(url);
     setNpsCopied(true);
-    setTimeout(() => setNpsCopied(false), 2000);
+    copyNpsTimerRef.current = setTimeout(() => setNpsCopied(false), 2000);
     showToast('NPS survey URL copied to clipboard', 'success');
   }, [client.id, showToast]);
 

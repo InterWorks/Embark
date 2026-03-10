@@ -17,8 +17,14 @@ export interface AutomationLog {
   executedAt: string;
 }
 
+// One-time migration from 'onboarding-automations' to 'embark-automations'
+if (!localStorage.getItem('embark-automations') && localStorage.getItem('onboarding-automations')) {
+  localStorage.setItem('embark-automations', localStorage.getItem('onboarding-automations')!);
+  localStorage.removeItem('onboarding-automations');
+}
+
 export function useAutomations() {
-  const [rules, setRules] = useLocalStorage<AutomationRule[]>('onboarding-automations', []);
+  const [rules, setRules] = useLocalStorage<AutomationRule[]>('embark-automations', []);
   const [logs, setLogs] = useLocalStorage<AutomationLog[]>('embark-automation-logs', []);
   const { enqueue } = useEmailQueue();
 

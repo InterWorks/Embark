@@ -87,7 +87,11 @@ function getOnboardingHealth(client: Client): ClientHealth | null {
   );
 
   // Check go-live date
-  const goLiveDate = client.targetGoLiveDate ? new Date(client.targetGoLiveDate) : null;
+  let goLiveDate: Date | null = null;
+  if (client.targetGoLiveDate) {
+    goLiveDate = new Date(client.targetGoLiveDate);
+    goLiveDate.setHours(0, 0, 0, 0); // normalize to local midnight
+  }
   const daysToGoLive = goLiveDate
     ? Math.ceil((goLiveDate.getTime() - now.getTime()) / 86400000)
     : null;

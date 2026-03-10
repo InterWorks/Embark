@@ -28,14 +28,15 @@ interface DashboardProps {
 function useCountUp(target: number, duration = 700): number {
   const [val, setVal] = useState(0);
   useEffect(() => {
+    let frameId: number;
     const start = Date.now();
     const tick = () => {
       const t = Math.min((Date.now() - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 4); // easeOutQuart
-      setVal(Math.round(target * eased));
-      if (t < 1) requestAnimationFrame(tick);
+      setVal(Math.round(target * (1 - Math.pow(1 - t, 4))));
+      if (t < 1) frameId = requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
   }, [target, duration]);
   return val;
 }
@@ -83,20 +84,26 @@ export function Dashboard({ onNavigate, onOpenDigest, onSelectClient }: Dashboar
     };
   }, [activeClients]);
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: activeClients.length,
     active: activeClients.filter((c) => c.status === 'active').length,
     completed: activeClients.filter((c) => c.status === 'completed').length,
     onHold: activeClients.filter((c) => c.status === 'on-hold').length,
-  };
+  }), [activeClients]);
 
-  const allTasks = activeClients.flatMap((c) => c.checklist.map((item) => ({ ...item, clientName: c.name, clientId: c.id, priority: c.priority })));
-  const completedTasks = allTasks.filter((t) => t.completed).length;
-  const overdueTasks = allTasks.filter((t) => {
+  const allTasks = useMemo(
+    () => activeClients.flatMap((c) => c.checklist.map((item) => ({ ...item, clientName: c.name, clientId: c.id, priority: c.priority }))),
+    [activeClients]
+  );
+
+  const completedTasks = useMemo(() => allTasks.filter((t) => t.completed).length, [allTasks]);
+
+  const overdueTasks = useMemo(() => allTasks.filter((t) => {
     if (t.completed || !t.dueDate) return false;
     return new Date(t.dueDate) < new Date(new Date().toDateString());
-  });
-  const upcomingTasks = allTasks
+  }), [allTasks]);
+
+  const upcomingTasks = useMemo(() => allTasks
     .filter((t) => {
       if (t.completed || !t.dueDate) return false;
       const due = new Date(t.dueDate);
@@ -104,9 +111,14 @@ export function Dashboard({ onNavigate, onOpenDigest, onSelectClient }: Dashboar
       const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
       return due >= today && due <= weekFromNow;
     })
-    .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+    .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()),
+    [allTasks]
+  );
 
-  const completionRate = allTasks.length > 0 ? Math.round((completedTasks / allTasks.length) * 100) : 0;
+  const completionRate = useMemo(
+    () => allTasks.length > 0 ? Math.round((completedTasks / allTasks.length) * 100) : 0,
+    [allTasks, completedTasks]
+  );
 
   // On-Time Forecast: percentage of clients with a target go-live date that are on track
   const onTimeForecastPct = useMemo(() => {
@@ -119,9 +131,12 @@ export function Dashboard({ onNavigate, onOpenDigest, onSelectClient }: Dashboar
     return Math.round((onTrackCount / clientsWithTarget.length) * 100);
   }, [activeClients]);
 
-  const recentClients = [...activeClients]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+  const recentClients = useMemo(
+    () => [...activeClients]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5),
+    [activeClients]
+  );
 
   // Priority distribution
   const priorityStats = useMemo(() => {

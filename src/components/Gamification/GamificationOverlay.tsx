@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useGamificationContext } from '../../context/GamificationContext';
 import { XPPopup } from './XPPopup';
 import { DeedToast } from './DeedToast';
@@ -7,7 +7,7 @@ import { QuestCompleteOverlay } from './QuestCompleteOverlay';
 
 export function GamificationOverlay() {
   const { getPendingEvents, dismissEvent } = useGamificationContext();
-  const events = getPendingEvents();
+  const events = useMemo(() => getPendingEvents(), [getPendingEvents]);
 
   const xpEvents = events.filter(e => e.type === 'xp_gained');
   const deedEvents = events.filter(e => e.type === 'deed_unlocked');

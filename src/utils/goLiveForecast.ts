@@ -49,7 +49,9 @@ export function computeGoLiveForecast(client: Client): GoLiveForecast {
   let status: GoLiveForecast['status'] = 'on-track';
 
   if (client.targetGoLiveDate) {
-    const targetMs = new Date(client.targetGoLiveDate).getTime();
+    const target = new Date(client.targetGoLiveDate);
+    target.setHours(0, 0, 0, 0);
+    const targetMs = target.getTime();
     // positive = late (predicted after target), negative = ahead
     daysVsTarget = Math.ceil((predictedMs - targetMs) / 86_400_000);
 

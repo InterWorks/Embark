@@ -206,7 +206,7 @@ export interface ActivityLogEntry {
       | 'phase_advanced' | 'client_graduated' | 'task_blocked' | 'task_unblocked';
   description: string;
   timestamp: string;
-  metadata?: Record<string, string>;
+  metadata?: Record<string, unknown>;
 }
 
 // Client Assignment - links team members to clients with specific roles

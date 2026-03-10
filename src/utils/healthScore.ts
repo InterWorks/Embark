@@ -39,7 +39,7 @@ export function computeHealthScore(client: Client, slaStatuses: ClientSLAStatus[
 
   // 3. Communication recency (20 pts)
   const commLog = client.communicationLog ?? [];
-  let communicationRecency = 20;
+  let communicationRecency = 0;
   if (commLog.length > 0) {
     const lastEntry = commLog[commLog.length - 1];
     const daysSince = Math.floor(

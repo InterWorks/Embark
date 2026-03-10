@@ -58,12 +58,13 @@ export function useTimeTracking(clientId: string, taskId: string) {
         setElapsed(secs);
       };
       update();
-      intervalRef.current = setInterval(update, 1000);
+      const id = setInterval(update, 1000);
+      intervalRef.current = id;
+      return () => clearInterval(id);
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
       setElapsed(0);
     }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [isRunning, activeTimer]);
 
   const startTimer = useCallback((taskTitle: string) => {

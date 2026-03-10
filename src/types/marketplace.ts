@@ -1,4 +1,5 @@
 // Marketplace Types - Plugin/App Architecture
+import type { AutomationTrigger, AutomationActionType } from './index';
 
 export type AppCategory =
   | 'templates'
@@ -160,9 +161,9 @@ export interface AutomationRecipe {
   id: string;
   name: string;
   description: string;
-  trigger: string;
+  trigger: AutomationTrigger;
   conditions?: string[];
-  actions: string[];
+  actions: AutomationActionType[];
 }
 
 // Custom Field Types

@@ -54,8 +54,8 @@ export function useSLA() {
         }
 
         if (def.slaType === 'first_response') {
-          const hasAnyTask = client.checklist.some(t => t.completed);
-          if (hasAnyTask) continue; // already responded
+          const hasResponded = (client.communicationLog ?? []).length > 0;
+          if (hasResponded) continue; // already responded
           relevantDaysUsed = daysUsed;
         }
 

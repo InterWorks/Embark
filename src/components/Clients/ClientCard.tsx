@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { Client, LifecycleStage } from '../../types';
 import { formatDate } from '../../utils/helpers';
 import { getClientHealth, HEALTH_COLORS } from '../../utils/clientHealth';
@@ -10,6 +11,7 @@ import { HealthSparkline } from './HealthSparkline';
 import { NextActionBanner } from './NextActionBanner';
 import type { HealthSnapshot } from '../../hooks/useHealthHistory';
 import { computeChurnRisk } from '../../hooks/useChurnRisk';
+import { useTheme } from '../../context/ThemeContext';
 
 const STAGE_COLORS: Record<LifecycleStage, string> = {
   'onboarding':    'bg-blue-100 text-blue-700 border-blue-300',
@@ -117,10 +119,16 @@ export function ClientCard({ client, onSelect, isSelected, onToggleSelect, selec
   const totalTasks = client.checklist.length;
   const health = getClientHealth(client);
   const chip = client.targetGoLiveDate ? goLiveChip(client.targetGoLiveDate) : null;
-  const fchip = forecastChip(client);
+  const fchip = useMemo(() => forecastChip(client), [client]);
   const slaStatuses = useSLAStatuses([client]);
-  const healthScore = computeHealthScore(client, slaStatuses);
-  const nextAction = computeNextAction(client, slaStatuses);
+  const healthScore = useMemo(() => computeHealthScore(client, slaStatuses), [client, slaStatuses]);
+  const nextAction = useMemo(() => computeNextAction(client, slaStatuses), [client, slaStatuses]);
+  const churnRisk = useMemo(
+    () => sparklineSnapshots
+      ? computeChurnRisk(sparklineSnapshots, sparklineSnapshots.length > 0 ? sparklineSnapshots[sparklineSnapshots.length - 1].score : 50)
+      : null,
+    [client, slaStatuses, sparklineSnapshots]
+  );
 
   const handleClick = () => {
     if (selectionMode && onToggleSelect) {
@@ -136,7 +144,8 @@ export function ClientCard({ client, onSelect, isSelected, onToggleSelect, selec
   };
 
   const cardBg = getCardBg(client.id);
-  const isDark = document.documentElement.classList.contains('dark');
+  const { mode } = useTheme();
+  const isDark = mode === 'dark';
 
   return (
     <div
@@ -221,15 +230,11 @@ export function ClientCard({ client, onSelect, isSelected, onToggleSelect, selec
               />
             )}
           </div>
-          {sparklineSnapshots && (() => {
-            const churnRisk = computeChurnRisk(sparklineSnapshots, sparklineSnapshots.length > 0 ? sparklineSnapshots[sparklineSnapshots.length - 1].score : 50);
-            if (churnRisk.level === 'stable') return null;
-            return (
-              <span className={`px-1.5 py-0.5 text-xs rounded-full font-semibold ${churnRisk.color}`}>
-                {churnRisk.label}
-              </span>
-            );
-          })()}
+          {churnRisk && churnRisk.level !== 'stable' && (
+            <span className={`px-1.5 py-0.5 text-xs rounded-full font-semibold ${churnRisk.color}`}>
+              {churnRisk.label}
+            </span>
+          )}
         </div>
       </div>
 

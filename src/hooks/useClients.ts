@@ -3,7 +3,13 @@ import type { Client, ClientFormData, Service, ChecklistItem, ChecklistTemplate,
 import { useLocalStorage } from './useLocalStorage';
 import { generateId } from '../utils/helpers';
 
-function createLogEntry(type: ActivityLogEntry['type'], description: string, metadata?: Record<string, string>): ActivityLogEntry {
+// One-time migration from 'onboarding-clients' to 'embark-clients'
+if (!localStorage.getItem('embark-clients') && localStorage.getItem('onboarding-clients')) {
+  localStorage.setItem('embark-clients', localStorage.getItem('onboarding-clients')!);
+  localStorage.removeItem('onboarding-clients');
+}
+
+function createLogEntry(type: ActivityLogEntry['type'], description: string, metadata?: Record<string, unknown>): ActivityLogEntry {
   return {
     id: generateId(),
     type,
@@ -22,7 +28,7 @@ function createDefaultTaskGroups(): TaskGroup[] {
 }
 
 export function useClients() {
-  const [clients, setClients] = useLocalStorage<Client[]>('onboarding-clients', []);
+  const [clients, setClients] = useLocalStorage<Client[]>('embark-clients', []);
 
   const addClient = useCallback((data: ClientFormData): Client => {
     const defaultGroups = createDefaultTaskGroups();
@@ -716,18 +722,19 @@ export function useClients() {
   const restoreBackup = useCallback((backupClients: Client[], merge: boolean = false): number => {
     if (merge) {
       // Merge: add clients that don't exist (by ID)
+      let addedCount = 0;
       setClients((prev) => {
-        const existingIds = new Set(prev.map((c) => c.id));
-        const newClients = backupClients.filter((c) => !existingIds.has(c.id));
-        return [...prev, ...newClients];
+        const newOnes = backupClients.filter(c => !prev.some(e => e.id === c.id));
+        addedCount = newOnes.length;
+        return [...prev, ...newOnes];
       });
-      return backupClients.filter((c) => !clients.some((existing) => existing.id === c.id)).length;
+      return addedCount;
     } else {
       // Replace: overwrite all clients
       setClients(backupClients);
       return backupClients.length;
     }
-  }, [clients, setClients]);
+  }, [setClients]);
 
   // Custom field operations
   const updateCustomField = useCallback((clientId: string, fieldId: string, value: unknown) => {

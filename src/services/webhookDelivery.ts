@@ -3,7 +3,7 @@ import type { AppEvent, AppEventType } from '../events/appEvents';
 import type { WebhookEndpoint, WebhookDelivery } from '../types/webhooks';
 import { generateId } from '../utils/helpers';
 
-function buildSlackPayload(event: AppEvent): object {
+function buildSlackPayload(event: AppEvent): Record<string, unknown> {
   switch (event.type) {
     case 'client_created':
       return {
@@ -61,9 +61,11 @@ function buildSlackPayload(event: AppEvent): object {
   }
 }
 
-function buildCustomPayload(event: AppEvent): object {
-  const { type, timestamp, ...data } = event as AppEvent & Record<string, unknown>;
-  return { event: type, timestamp, data };
+function buildCustomPayload(event: AppEvent): Record<string, unknown> {
+  const payload = { ...(event as Record<string, unknown>) };
+  delete payload.type;
+  delete payload.timestamp;
+  return { event: event.type, timestamp: event.timestamp, data: payload };
 }
 
 export function initWebhookDelivery(

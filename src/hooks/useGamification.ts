@@ -82,81 +82,76 @@ export function useGamification() {
   }, [setStore]);
 
   const awardXP = useCallback((amount: number, memberId?: string): AwardXPResult => {
-    let result: AwardXPResult = {
-      xpGained: amount, leveledUp: false, previousLevel: 1, newLevel: 1, newDeeds: [],
+    const id = memberId ?? store.currentPlayerId;
+    const member = store.members[id] ?? createDefaultMember(id, 'You');
+    const previousLevel = getLevel(member.totalXP);
+    const newTotalXP = member.totalXP + amount;
+    const newLevel = getLevel(newTotalXP);
+    const leveledUp = newLevel > previousLevel;
+
+    const thisWeek = getWeekStart(new Date());
+    const isNewWeek = member.weekStartDate !== thisWeek;
+    const weeklyXP = isNewWeek ? amount : member.weeklyXP + amount;
+
+    const newDeedIds = checkDeedConditions(
+      member.stats, newTotalXP, member.currentStreak, member.unlockedDeeds,
+      member.stats.peakActiveClientsCount
+    );
+    const newDeeds = newDeedIds.map(deedId => DEEDS[deedId]);
+
+    const now = new Date().toISOString();
+    const newEvents: GamificationEvent[] = [
+      {
+        id: crypto.randomUUID(),
+        type: 'xp_gained',
+        memberId: id,
+        xpGained: amount,
+        totalXP: newTotalXP,
+        createdAt: now,
+      },
+    ];
+    if (leveledUp) {
+      newEvents.push({
+        id: crypto.randomUUID(),
+        type: 'level_up',
+        memberId: id,
+        previousLevel,
+        newLevel,
+        newTitle: getTitle(member.characterClass, newLevel),
+        totalXP: newTotalXP,
+        createdAt: now,
+      });
+    }
+    for (const deed of newDeeds) {
+      newEvents.push({
+        id: crypto.randomUUID(),
+        type: 'deed_unlocked',
+        memberId: id,
+        deed,
+        createdAt: now,
+      });
+    }
+
+    const result: AwardXPResult = { xpGained: amount, leveledUp, previousLevel, newLevel, newDeeds };
+
+    const newState = {
+      ...store,
+      pendingEvents: [...store.pendingEvents, ...newEvents],
+      members: {
+        ...store.members,
+        [id]: {
+          ...member,
+          totalXP: newTotalXP,
+          weeklyXP,
+          weekStartDate: isNewWeek ? thisWeek : member.weekStartDate,
+          unlockedDeeds: [...member.unlockedDeeds, ...newDeedIds],
+        },
+      },
     };
-
-    setStore(prev => {
-      const id = memberId ?? prev.currentPlayerId;
-      const member = prev.members[id] ?? createDefaultMember(id, 'You');
-      const previousLevel = getLevel(member.totalXP);
-      const newTotalXP = member.totalXP + amount;
-      const newLevel = getLevel(newTotalXP);
-      const leveledUp = newLevel > previousLevel;
-
-      const thisWeek = getWeekStart(new Date());
-      const isNewWeek = member.weekStartDate !== thisWeek;
-      const weeklyXP = isNewWeek ? amount : member.weeklyXP + amount;
-
-      const newDeedIds = checkDeedConditions(
-        member.stats, newTotalXP, member.currentStreak, member.unlockedDeeds,
-        member.stats.peakActiveClientsCount
-      );
-      const newDeeds = newDeedIds.map(deedId => DEEDS[deedId]);
-
-      const now = new Date().toISOString();
-      const newEvents: GamificationEvent[] = [
-        {
-          id: crypto.randomUUID(),
-          type: 'xp_gained',
-          memberId: id,
-          xpGained: amount,
-          totalXP: newTotalXP,
-          createdAt: now,
-        },
-      ];
-      if (leveledUp) {
-        newEvents.push({
-          id: crypto.randomUUID(),
-          type: 'level_up',
-          memberId: id,
-          previousLevel,
-          newLevel,
-          newTitle: getTitle(member.characterClass, newLevel),
-          totalXP: newTotalXP,
-          createdAt: now,
-        });
-      }
-      for (const deed of newDeeds) {
-        newEvents.push({
-          id: crypto.randomUUID(),
-          type: 'deed_unlocked',
-          memberId: id,
-          deed,
-          createdAt: now,
-        });
-      }
-
-      result = { xpGained: amount, leveledUp, previousLevel, newLevel, newDeeds };
-
-      return {
-        ...prev,
-        pendingEvents: [...prev.pendingEvents, ...newEvents],
-        members: {
-          ...prev.members,
-          [id]: {
-            ...member,
-            totalXP: newTotalXP,
-            weeklyXP,
-            weekStartDate: isNewWeek ? thisWeek : member.weekStartDate,
-            unlockedDeeds: [...member.unlockedDeeds, ...newDeedIds],
-          },
-        },
-      };
-    });
+    setStore(newState);
 
     return result;
-  }, [setStore]);
+  }, [store, setStore]);
 
   const trackDailyActivity = useCallback((dateStr?: string, memberId?: string) => {
     setStore(prev => {

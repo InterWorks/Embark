@@ -16,7 +16,7 @@ export interface WebhookDelivery {
   endpointId: string;
   endpointName: string;
   event: AppEventType;
-  payload: object;
+  payload: Record<string, unknown>;
   status: 'success' | 'failed';
   statusCode?: number;
   error?: string;

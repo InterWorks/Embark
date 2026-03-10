@@ -469,6 +469,10 @@ export function parseFullAppBackup(jsonContent: string): FullAppRestoreResult & 
   try {
     const backup = JSON.parse(jsonContent) as FullAppBackupData;
 
+    if (typeof backup.data !== 'object' || backup.data === null) {
+      throw new Error('Invalid backup: data field is not an object');
+    }
+
     // Check if it's a v2 complete backup
     if (backup.version === '2.0' && backup.appName === 'embark' && backup.data) {
       return {
@@ -705,6 +709,13 @@ export function parseBackupFile(jsonContent: string): RestoreResult {
     if (!data.version || !Array.isArray(data.clients)) {
       return { success: false, clients: [], templates: [], error: 'Invalid backup file format' };
     }
+
+    data.clients = data.clients.map((c: any) => ({
+      ...c,
+      checklist: Array.isArray(c.checklist) ? c.checklist : [],
+      activityLog: Array.isArray(c.activityLog) ? c.activityLog : [],
+      services: Array.isArray(c.services) ? c.services : [],
+    }));
 
     // Validate clients have required fields
     const validClients = data.clients.filter((c) => c.id && c.name);

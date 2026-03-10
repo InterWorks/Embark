@@ -130,7 +130,7 @@ function buildClientData(
         }
       }
     } else {
-      mapped[appField] = val;
+      mapped[appField] = val.slice(0, 200);
     }
   }
 

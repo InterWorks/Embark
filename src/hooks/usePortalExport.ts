@@ -1,6 +1,16 @@
 import type { Client } from '../types';
 import { getClientHealth } from '../utils/clientHealth';
 
+function escHtml(str: string | undefined | null): string {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function initials(name: string): string {
   return name
     .split(/\s+/)
@@ -89,8 +99,8 @@ export function generatePortalHTML(client: Client): string {
     .filter(([, v]) => v)
     .map(([label, value]) => `
       <tr>
-        <td class="key">${label}</td>
-        <td class="val">${value}</td>
+        <td class="key">${escHtml(label)}</td>
+        <td class="val">${escHtml(value)}</td>
       </tr>`)
     .join('');
 
@@ -101,11 +111,11 @@ export function generatePortalHTML(client: Client): string {
         ${milestones.map(m => {
           const isPast = !m.completedAt && m.targetDate && new Date(m.targetDate) < now;
           const cls = m.completedAt ? 'done' : isPast ? 'overdue' : 'pending';
-          return `<div class="dot ${cls}" title="${m.title}${m.targetDate ? ' · ' + m.targetDate : ''}"></div>`;
+          return `<div class="dot ${cls}" title="${escHtml(m.title)}${m.targetDate ? ' · ' + escHtml(m.targetDate) : ''}"></div>`;
         }).join('')}
       </div>
       <div class="milestone-labels">
-        ${milestones.map(m => `<span class="ml-label ${m.completedAt ? 'done' : ''}">${m.title}</span>`).join('')}
+        ${milestones.map(m => `<span class="ml-label ${m.completedAt ? 'done' : ''}">${escHtml(m.title)}</span>`).join('')}
       </div>
     </section>` : '';
 
@@ -121,7 +131,7 @@ export function generatePortalHTML(client: Client): string {
           return `
             <div class="phase-row">
               <div class="phase-header">
-                <span class="phase-name">${phase.name}</span>
+                <span class="phase-name">${escHtml(phase.name)}</span>
                 <span class="phase-count">${done}/${phaseItems.length}</span>
               </div>
               <div class="phase-bar-bg"><div class="phase-bar" style="width:${pct}%"></div></div>
@@ -134,7 +144,7 @@ export function generatePortalHTML(client: Client): string {
     <section class="action-section">
       <h2>Your Action Items</h2>
       <ol>
-        ${clientActionItems.map(t => `<li><span class="task-title">${t.title}</span>${t.dueDate ? `<span class="task-due"> · due ${t.dueDate}</span>` : ''}</li>`).join('')}
+        ${clientActionItems.map(t => `<li><span class="task-title">${escHtml(t.title)}</span>${t.dueDate ? `<span class="task-due"> · due ${escHtml(t.dueDate)}</span>` : ''}</li>`).join('')}
       </ol>
     </section>` : '';
 
@@ -142,7 +152,7 @@ export function generatePortalHTML(client: Client): string {
     <section>
       <h2>What We're Working On</h2>
       <ol>
-        ${internalItems.map(t => `<li><span class="task-title">${t.title}</span>${t.dueDate ? `<span class="task-due"> · due ${t.dueDate}</span>` : ''}</li>`).join('')}
+        ${internalItems.map(t => `<li><span class="task-title">${escHtml(t.title)}</span>${t.dueDate ? `<span class="task-due"> · due ${escHtml(t.dueDate)}</span>` : ''}</li>`).join('')}
       </ol>
     </section>` : '';
 
@@ -150,7 +160,7 @@ export function generatePortalHTML(client: Client): string {
     <section>
       <h2>Next Steps</h2>
       <ol>
-        ${fallbackNextSteps.map(t => `<li><span class="task-title">${t.title}</span>${t.dueDate ? `<span class="task-due"> · due ${t.dueDate}</span>` : ''}</li>`).join('')}
+        ${fallbackNextSteps.map(t => `<li><span class="task-title">${escHtml(t.title)}</span>${t.dueDate ? `<span class="task-due"> · due ${escHtml(t.dueDate)}</span>` : ''}</li>`).join('')}
       </ol>
     </section>` : '';
 
@@ -166,8 +176,8 @@ export function generatePortalHTML(client: Client): string {
       <div class="team-list">
         ${(client.assignments ?? []).map(a => `
           <div class="team-member">
-            <span class="avatar">${initials(a.memberId)}</span>
-            <span class="member-name">${a.memberId}</span>
+            <span class="avatar">${escHtml(initials(a.memberId))}</span>
+            <span class="member-name">${escHtml(a.memberId)}</span>
           </div>`).join('')}
       </div>
     </section>` : '';
@@ -177,7 +187,7 @@ export function generatePortalHTML(client: Client): string {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>${client.name} — Onboarding Portal</title>
+<title>${escHtml(client.name)} — Onboarding Portal</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; }
@@ -233,11 +243,11 @@ export function generatePortalHTML(client: Client): string {
 <body>
 <header class="header">
   <div class="header-inner">
-    <div class="avatar-lg">${initials(client.name)}</div>
+    <div class="avatar-lg">${escHtml(initials(client.name))}</div>
     <div>
-      <div class="client-name">${client.name}</div>
-      <span class="status-badge">${statusLabel(client.status)}</span>
-      ${health ? `<span class="health-badge"><span class="health-dot"></span>${healthL}</span>` : ''}
+      <div class="client-name">${escHtml(client.name)}</div>
+      <span class="status-badge">${escHtml(statusLabel(client.status))}</span>
+      ${health ? `<span class="health-badge"><span class="health-dot"></span>${escHtml(healthL)}</span>` : ''}
     </div>
   </div>
 </header>

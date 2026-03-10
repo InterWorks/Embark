@@ -7,12 +7,13 @@ import type { AppEventType } from '../events/appEvents';
 import type { WebhookEndpoint, WebhookDelivery } from '../types/webhooks';
 import { generateId } from '../utils/helpers';
 
-const ENDPOINTS_KEY = 'embark_webhook_endpoints';
+const ENDPOINTS_KEY = 'embark-webhook-endpoints';
 const DELIVERIES_KEY = 'embark_webhook_deliveries';
 
 function getEndpoints(): WebhookEndpoint[] {
   try {
-    return JSON.parse(localStorage.getItem(ENDPOINTS_KEY) ?? '[]');
+    const parsed = JSON.parse(localStorage.getItem(ENDPOINTS_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -20,7 +21,8 @@ function getEndpoints(): WebhookEndpoint[] {
 
 function getDeliveries(): WebhookDelivery[] {
   try {
-    return JSON.parse(localStorage.getItem(DELIVERIES_KEY) ?? '[]');
+    const parsed = JSON.parse(localStorage.getItem(DELIVERIES_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -43,7 +45,7 @@ export function fire(eventType: AppEventType, payload: unknown): void {
       endpointId: endpoint.id,
       endpointName: endpoint.name,
       event: eventType,
-      payload: payload as object,
+      payload: payload as Record<string, unknown>,
       status: 'success',
       deliveredAt: new Date().toISOString(),
     };

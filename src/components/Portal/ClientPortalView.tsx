@@ -579,27 +579,31 @@ export function ClientPortalView({ client }: ClientPortalViewProps) {
                         )}
 
                         {/* Embedded media */}
-                        {t.embed && !isDone && (
-                          <div className="mt-3">
-                            <p className="text-xs font-semibold text-slate-500 mb-1.5">
-                              {getEmbedIcon(t.embed.type)} {getEmbedLabel(t.embed.type)}
-                            </p>
-                            <iframe
-                              src={getEmbedUrl(t.embed)}
-                              width="100%"
-                              height={t.embed.type === 'calendly' || t.embed.type === 'typeform' ? 500 : 315}
-                              frameBorder="0"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                              className="rounded-lg border border-slate-200"
-                              title={getEmbedLabel(t.embed.type)}
-                            />
-                            {t.embed.type === 'calendly' && (
-                              <p className="text-xs text-slate-400 mt-1 italic">Complete this task after booking</p>
-                            )}
-                          </div>
-                        )}
+                        {t.embed && !isDone && (() => {
+                          const embedSrc = getEmbedUrl(t.embed);
+                          if (!embedSrc) return null;
+                          return (
+                            <div className="mt-3">
+                              <p className="text-xs font-semibold text-slate-500 mb-1.5">
+                                {getEmbedIcon(t.embed.type)} {getEmbedLabel(t.embed.type)}
+                              </p>
+                              <iframe
+                                src={embedSrc}
+                                width="100%"
+                                height={t.embed.type === 'calendly' || t.embed.type === 'typeform' ? 500 : 315}
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                                sandbox="allow-scripts allow-popups allow-forms"
+                                className="rounded-lg border border-slate-200"
+                                title={getEmbedLabel(t.embed.type)}
+                              />
+                              {t.embed.type === 'calendly' && (
+                                <p className="text-xs text-slate-400 mt-1 italic">Complete this task after booking</p>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {!isDone && !isApprovalTask && (
                           <div className="flex gap-2 mt-2">
                             <input

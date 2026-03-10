@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import type { AISettings, AIProvider } from '../types';
 
-const defaultSettings: AISettings = {
+type StoredSettings = Omit<AISettings, 'anthropicApiKey'>;
+
+const defaultStoredSettings: StoredSettings = {
   provider: 'anthropic',
-  anthropicApiKey: '',
   anthropicModel: 'claude-sonnet-4-20250514',
   ollamaEndpoint: 'http://localhost:11434',
   ollamaModel: 'llama3',
@@ -12,10 +14,39 @@ const defaultSettings: AISettings = {
 };
 
 export function useAISettings() {
-  const [settings, setSettings] = useLocalStorage<AISettings>('embark-ai-settings', defaultSettings);
+  const [storedSettings, setStoredSettings] = useLocalStorage<StoredSettings>('embark-ai-settings', defaultStoredSettings);
+
+  // On first load, migrate any key that was previously persisted to localStorage,
+  // then keep it only in React state going forward.
+  const [apiKey, setApiKey] = useState<string>(() => {
+    try {
+      const raw = localStorage.getItem('embark-ai-settings');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.anthropicApiKey === 'string' && parsed.anthropicApiKey) {
+          // Remove the key from the stored object immediately
+          const { anthropicApiKey: _removed, ...rest } = parsed;
+          localStorage.setItem('embark-ai-settings', JSON.stringify(rest));
+          return parsed.anthropicApiKey as string;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return '';
+  });
+
+  // Expose a combined settings object so consumers see the full AISettings shape.
+  const settings: AISettings = { ...storedSettings, anthropicApiKey: apiKey };
 
   const updateSettings = (updates: Partial<AISettings>) => {
-    setSettings(prev => ({ ...prev, ...updates }));
+    const { anthropicApiKey, ...rest } = updates;
+    if (anthropicApiKey !== undefined) {
+      setApiKey(anthropicApiKey);
+    }
+    if (Object.keys(rest).length > 0) {
+      setStoredSettings(prev => ({ ...prev, ...rest }));
+    }
   };
 
   const setProvider = (provider: AIProvider) => {
@@ -23,7 +54,7 @@ export function useAISettings() {
   };
 
   const setAnthropicKey = (key: string) => {
-    updateSettings({ anthropicApiKey: key });
+    setApiKey(key);
   };
 
   const setOllamaEndpoint = (endpoint: string) => {
@@ -35,7 +66,7 @@ export function useAISettings() {
   };
 
   const toggleTools = () => {
-    updateSettings({ enableTools: !settings.enableTools });
+    updateSettings({ enableTools: !storedSettings.enableTools });
   };
 
   return {

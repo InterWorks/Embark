@@ -25,11 +25,15 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === key && e.newValue) {
-        try {
-          setStoredValue(JSON.parse(e.newValue));
-        } catch (error) {
-          console.error(`Error parsing storage change for key "${key}":`, error);
+      if (e.key === key) {
+        if (e.newValue === null) {
+          setStoredValue(initialValue);
+        } else {
+          try {
+            setStoredValue(JSON.parse(e.newValue));
+          } catch (error) {
+            console.error(`Error parsing storage change for key "${key}":`, error);
+          }
         }
       }
     };

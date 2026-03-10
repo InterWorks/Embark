@@ -235,26 +235,26 @@ export function ClientList({
     setSelectedIds(new Set());
   }, []);
 
-  const handleSelectClient = (client: Client) => {
+  const handleSelectClient = useCallback((client: Client) => {
     if (selectedIds.size > 0) {
       // In selection mode, toggle selection
       toggleSelection(client.id);
     } else {
       setSelectedClient(client);
     }
-  };
+  }, [selectedIds, toggleSelection]);
 
-  const handleCloseDetail = () => {
+  const handleCloseDetail = useCallback(() => {
     setSelectedClient(null);
-  };
+  }, []);
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     exportClientsToCSV(clients);
-  };
+  }, [clients]);
 
-  const handleStatusReport = () => {
+  const handleStatusReport = useCallback(() => {
     exportOnboardingStatusReport(clients);
-  };
+  }, [clients]);
 
   const buildContextMenuItems = (client: Client): ContextMenuItem[] => [
     {

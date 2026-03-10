@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import type { Notification, NotificationType, NotificationPreferences } from '../types';
 
@@ -23,13 +23,17 @@ export function useNotifications() {
   const [notifications, setNotifications] = useLocalStorage<Notification[]>('embark-notifications', []);
   const [preferences, setPreferences] = useLocalStorage<NotificationPreferences>('embark-notification-preferences', defaultPreferences);
 
+  const preferencesRef = useRef(preferences);
+  useEffect(() => { preferencesRef.current = preferences; }, [preferences]);
+
   // Add a notification
   const addNotification = useCallback((
     notification: Omit<Notification, 'id' | 'read' | 'dismissed' | 'createdAt'>
   ) => {
+    const prefs = preferencesRef.current;
     // Check if this type of notification is enabled
-    const typeEnabled = checkTypeEnabled(notification.type, preferences);
-    if (!preferences.enabled || !typeEnabled) return null;
+    const typeEnabled = checkTypeEnabled(notification.type, prefs);
+    if (!prefs.enabled || !typeEnabled) return null;
 
     const newNotification: Notification = {
       ...notification,
@@ -42,12 +46,12 @@ export function useNotifications() {
     setNotifications(prev => [newNotification, ...prev]);
 
     // Play sound if enabled
-    if (preferences.playSound) {
+    if (prefs.playSound) {
       playNotificationSound();
     }
 
     return newNotification;
-  }, [preferences, setNotifications]);
+  }, [setNotifications]);
 
   // Mark notification as read
   const markAsRead = useCallback((notificationId: string) => {

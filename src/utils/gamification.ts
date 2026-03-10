@@ -187,6 +187,7 @@ export function checkDeedConditions(
 
   if (currentStreak >= 7) candidates.push('iron_will');
   if (currentStreak >= 30) candidates.push('unstoppable');
+  if (stats.plannerDaysUsed.length >= 5) candidates.push('the_planner');
   if (hasEarlyTask) candidates.push('dawn_patrol');
   if (hasLateTask) candidates.push('night_owl');
 

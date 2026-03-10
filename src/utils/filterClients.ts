@@ -23,7 +23,9 @@ function daysSinceLastContact(client: Client): number {
  */
 function daysUntilGoLive(client: Client): number {
   if (!client.targetGoLiveDate) return Infinity;
-  const ms = new Date(client.targetGoLiveDate).getTime() - Date.now();
+  const d = new Date(client.targetGoLiveDate);
+  d.setHours(0, 0, 0, 0); // normalize to local midnight
+  const ms = d.getTime() - Date.now();
   return Math.floor(ms / 86400000);
 }
 
@@ -90,7 +92,9 @@ function matchesCondition(client: Client, condition: FilterCondition): boolean {
         const condValue = parseFloat(value);
         if (isNaN(condValue)) return true;
         // "greater than N days" → matches (infinity > N)
-        if (operator === 'greater_than' || operator === 'in_days') return true;
+        // "in_days" means within N days — no contact means does NOT match
+        if (operator === 'greater_than') return true;
+        if (operator === 'in_days') return false;
         // "less than N days" → no contact at all, doesn't match
         return false;
       }
