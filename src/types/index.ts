@@ -415,7 +415,8 @@ export type AutomationTrigger =
   | 'all_tasks_completed'
   | 'priority_changed'
   | 'tag_added'
-  | 'phase_completed';
+  | 'phase_completed'
+  | 'scheduled';
 
 export type AutomationActionType =
   | 'change_status'
@@ -424,7 +425,9 @@ export type AutomationActionType =
   | 'add_task'
   | 'apply_template'
   | 'send_notification'
-  | 'send_email_sequence';
+  | 'send_email_sequence'
+  | 'send_welcome_email'
+  | 'create_follow_up_task';
 
 export interface EmailSequenceStep {
   templateId: string;  // ID of EmailTemplate

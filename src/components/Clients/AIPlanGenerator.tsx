@@ -39,10 +39,6 @@ interface AIResponse {
   phases: AIPhaseRaw[];
 }
 
-interface GeneratedPhase extends AIPhaseRaw {
-  id: string;
-}
-
 const PHASE_COLORS = [
   'bg-blue-500',
   'bg-purple-500',

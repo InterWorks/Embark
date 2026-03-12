@@ -116,7 +116,7 @@ export function StatusReportModal({ client, onClose }: StatusReportModalProps) {
     setReport('');
     setSelectedHistory(null);
 
-    const prompt = buildStatusReportPrompt(client, healthScore);
+    const prompt = buildStatusReportPrompt(client, healthScore.total);
 
     try {
       const resp = await fetch('https://api.anthropic.com/v1/messages', {

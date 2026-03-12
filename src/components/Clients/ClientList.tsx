@@ -235,6 +235,27 @@ export function ClientList({
     setSelectedIds(new Set());
   }, []);
 
+  // Selection handlers
+  const toggleSelection = useCallback((clientId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(clientId)) {
+        next.delete(clientId);
+      } else {
+        next.add(clientId);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(new Set(filteredClients.map((c) => c.id)));
+  }, [filteredClients]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
   const handleSelectClient = useCallback((client: Client) => {
     if (selectedIds.size > 0) {
       // In selection mode, toggle selection
@@ -299,27 +320,6 @@ export function ClientList({
       danger: true,
     },
   ];
-
-  // Selection handlers
-  const toggleSelection = useCallback((clientId: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(clientId)) {
-        next.delete(clientId);
-      } else {
-        next.add(clientId);
-      }
-      return next;
-    });
-  }, []);
-
-  const selectAll = useCallback(() => {
-    setSelectedIds(new Set(filteredClients.map((c) => c.id)));
-  }, [filteredClients]);
-
-  const deselectAll = useCallback(() => {
-    setSelectedIds(new Set());
-  }, []);
 
   // Bulk action handlers
   const handleBulkStatusChange = useCallback((status: Client['status']) => {

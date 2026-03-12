@@ -106,7 +106,7 @@ function TimelineItem({ activity }: TimelineItemProps) {
                 key={key}
                 className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
               >
-                {formatMetadataKey(key)}: {value}
+                {formatMetadataKey(key)}: {String(value)}
               </span>
             ))}
           </div>

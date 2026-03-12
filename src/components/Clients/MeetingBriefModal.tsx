@@ -105,7 +105,7 @@ function buildMeetingBriefPrompt(client: Client): string {
   );
   const overdueText =
     overdueTasks.length > 0
-      ? overdueTasks.map((t) => `- "${t.text}" (due ${formatTimestamp(t.dueDate!)})`).join('\n')
+      ? overdueTasks.map((t) => `- "${t.title}" (due ${formatTimestamp(t.dueDate!)})`).join('\n')
       : '- No overdue tasks.';
 
   // Blocked tasks
@@ -113,7 +113,7 @@ function buildMeetingBriefPrompt(client: Client): string {
   const blockedText =
     blockedTasks.length > 0
       ? blockedTasks
-          .map((t) => `- "${t.text}"${t.blockReason ? ` — Reason: ${t.blockReason}` : ''}`)
+          .map((t) => `- "${t.title}"${t.blockReason ? ` — Reason: ${t.blockReason}` : ''}`)
           .join('\n')
       : '- No blocked tasks.';
 

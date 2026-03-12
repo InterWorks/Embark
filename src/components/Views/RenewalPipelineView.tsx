@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useClientContext } from '../../context/ClientContext';
 import { computeHealthScore } from '../../utils/healthScore';
+import type { HealthScore } from '../../utils/healthScore';
 import { useSLAStatuses } from '../../hooks/useSLA';
 import { HealthScoreBadge } from '../Clients/HealthScoreBadge';
 import type { Client } from '../../types';
@@ -11,7 +12,7 @@ interface RenewalClient {
   client: Client;
   daysToRenewal: number;
   renewalStage: RenewalStage;
-  healthScore: number;
+  healthScore: HealthScore;
   mrr: number;
 }
 
@@ -130,7 +131,7 @@ export function RenewalPipelineView() {
 
       const renewalDate = client.account?.renewalDate;
       const mrr = client.account?.mrr ?? 0;
-      const healthScore = computeHealthScore(client, slaStatuses).total;
+      const healthScore = computeHealthScore(client, slaStatuses);
 
       // Include clients with a renewal date, OR manually moved to a renewal stage
       const hasManualOverride = !!overrides[client.id];
@@ -146,9 +147,9 @@ export function RenewalPipelineView() {
       if (client.lifecycleStage === 'churned') {
         defaultStage = 'churned';
       } else if (daysToRenewal <= 90 && daysToRenewal >= 0) {
-        defaultStage = healthScore < 50 ? 'at-risk' : 'upcoming';
+        defaultStage = healthScore.total < 50 ? 'at-risk' : 'upcoming';
       } else if (daysToRenewal < 0) {
-        defaultStage = healthScore < 40 ? 'churned' : 'renewed';
+        defaultStage = healthScore.total < 40 ? 'churned' : 'renewed';
       } else {
         // >90 days — only show if manually placed
         if (!hasManualOverride) continue;
@@ -176,7 +177,7 @@ export function RenewalPipelineView() {
     }
     // Sort each column by health score ascending (most at-risk first)
     for (const stage of Object.keys(map) as RenewalStage[]) {
-      map[stage].sort((a, b) => a.healthScore - b.healthScore);
+      map[stage].sort((a, b) => a.healthScore.total - b.healthScore.total);
     }
     return map;
   }, [renewalClients]);

@@ -223,6 +223,11 @@ export const triggerConfig: Record<AutomationTrigger, { label: string; descripti
     description: 'When an onboarding phase is completed',
     icon: '📋',
   },
+  scheduled: {
+    label: 'Scheduled',
+    description: 'Runs on a scheduled basis',
+    icon: '⏰',
+  },
 };
 
 // Action labels and descriptions
