@@ -12,6 +12,8 @@ interface PageTreeNodeProps {
   onUpdatePage: (id: string, data: Partial<StudioPage>) => void;
   onDeletePage: (id: string) => void;
   onTogglePin: (id: string) => void;
+  openMenuId: string | null;
+  setOpenMenuId: (id: string | null) => void;
 }
 
 function PageTreeNode({
@@ -24,28 +26,35 @@ function PageTreeNode({
   onUpdatePage,
   onDeletePage,
   onTogglePin,
+  openMenuId,
+  setOpenMenuId,
 }: PageTreeNodeProps) {
   const children = pages.filter((p) => p.parentId === page.id);
   const [expanded, setExpanded] = useLocalStorage(`studio-sidebar-exp-${page.id}`, true);
   const isActive = activePage?.id === page.id;
 
-  const [showMenu, setShowMenu] = useState(false);
+  const showMenu = openMenuId === page.id;
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(page.title);
 
   const rowRef = useRef<HTMLDivElement>(null);
+
+  // Keep renameValue fresh when page.title changes externally
+  useEffect(() => {
+    if (!isRenaming) setRenameValue(page.title);
+  }, [page.title, isRenaming]);
 
   // Close menu on outside click
   useEffect(() => {
     if (!showMenu) return;
     function handler(e: MouseEvent) {
       if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
+        setOpenMenuId(null);
       }
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [showMenu]);
+  }, [showMenu, setOpenMenuId]);
 
   function commitRename() {
     const trimmed = renameValue.trim();
@@ -55,17 +64,8 @@ function PageTreeNode({
     setIsRenaming(false);
   }
 
-  function handleRenameKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') {
-      commitRename();
-    } else if (e.key === 'Escape') {
-      setRenameValue(page.title);
-      setIsRenaming(false);
-    }
-  }
-
   function handleDelete() {
-    setShowMenu(false);
+    setOpenMenuId(null);
     if (window.confirm(`Delete "${page.title || 'Untitled'}"? This cannot be undone.`)) {
       onDeletePage(page.id);
     }
@@ -73,17 +73,17 @@ function PageTreeNode({
 
   function handleRename() {
     setRenameValue(page.title);
-    setShowMenu(false);
+    setOpenMenuId(null);
     setIsRenaming(true);
   }
 
   function handleAddSubpage() {
-    setShowMenu(false);
+    setOpenMenuId(null);
     onAddChild(page.id);
   }
 
   function handleTogglePin() {
-    setShowMenu(false);
+    setOpenMenuId(null);
     onTogglePin(page.id);
   }
 
@@ -104,31 +104,38 @@ function PageTreeNode({
         >
           {expanded ? '▾' : '▸'}
         </button>
-        <button
-          onClick={() => !isRenaming && onSelect(page)}
-          className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
-        >
-          <span className="text-sm flex-shrink-0">{page.icon}</span>
-          {isRenaming ? (
+
+        {isRenaming ? (
+          <>
+            <span className="text-sm flex-shrink-0">{page.icon}</span>
             <input
               autoFocus
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onBlur={commitRename}
-              onKeyDown={handleRenameKeyDown}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename();
+                if (e.key === 'Escape') { setRenameValue(page.title); setIsRenaming(false); }
+              }}
               onClick={(e) => e.stopPropagation()}
-              className="text-sm flex-1 min-w-0 bg-zinc-800 border border-zinc-600 rounded-[3px] px-1 py-0 text-zinc-100 outline-none focus:border-yellow-400"
+              className="flex-1 bg-transparent border-b border-yellow-400 text-sm text-zinc-100 outline-none px-0.5"
             />
-          ) : (
+          </>
+        ) : (
+          <button
+            onClick={() => onSelect(page)}
+            className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+          >
+            <span className="text-sm flex-shrink-0">{page.icon}</span>
             <span className={`text-sm truncate ${isActive ? 'font-bold text-zinc-100' : 'font-medium'}`}>
               {page.title || 'Untitled'}
             </span>
-          )}
-        </button>
+          </button>
+        )}
 
         {/* Context menu button */}
         <button
-          onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v); }}
+          onClick={(e) => { e.stopPropagation(); setOpenMenuId(showMenu ? null : page.id); }}
           className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-opacity flex-shrink-0 text-xs leading-none"
           title="Page options"
         >
@@ -177,6 +184,8 @@ function PageTreeNode({
           onUpdatePage={onUpdatePage}
           onDeletePage={onDeletePage}
           onTogglePin={onTogglePin}
+          openMenuId={openMenuId}
+          setOpenMenuId={setOpenMenuId}
         />
       ))}
     </div>
@@ -210,6 +219,8 @@ export function StudioSidebar({
   onDeletePage,
   onTogglePin,
 }: Props) {
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
   const rootPages = pages.filter((p) => !p.parentId);
   const pinnedPages = rootPages.filter((p) => p.isPinned);
   const unpinnedPages = rootPages.filter((p) => !p.isPinned);
@@ -280,6 +291,8 @@ export function StudioSidebar({
                     onUpdatePage={onUpdatePage}
                     onDeletePage={onDeletePage}
                     onTogglePin={onTogglePin}
+                    openMenuId={openMenuId}
+                    setOpenMenuId={setOpenMenuId}
                   />
                 ))}
               </div>
@@ -296,6 +309,8 @@ export function StudioSidebar({
                 onUpdatePage={onUpdatePage}
                 onDeletePage={onDeletePage}
                 onTogglePin={onTogglePin}
+                openMenuId={openMenuId}
+                setOpenMenuId={setOpenMenuId}
               />
             ))}
           </>
