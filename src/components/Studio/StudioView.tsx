@@ -33,6 +33,11 @@ export function StudioView() {
     setSubView('editor');
   }, []);
 
+  const handleDeletePage = useCallback((id: string) => {
+    deletePage(id);
+    if (activePage?.id === id) setActivePage(null);
+  }, [deletePage, activePage]);
+
   const handleUseTemplate = useCallback((templateId: string) => {
     const newPage = useTemplate(templateId);
     addPage(newPage);
@@ -56,6 +61,9 @@ export function StudioView() {
         onOpenGallery={() => setSubView('gallery')}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+        onUpdatePage={updatePage}
+        onDeletePage={handleDeletePage}
+        onTogglePin={togglePin}
       />
 
       <div className="flex-1 min-w-0 overflow-hidden">
