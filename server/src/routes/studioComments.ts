@@ -1,18 +1,12 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/index.js';
-import { studioComments, studioPages } from '../db/schema.js';
+import { studioComments } from '../db/schema.js';
 import { eq, and, isNull } from 'drizzle-orm';
 import type { AppEnv } from '../types.js';
+import { assertPageOwner } from './_pageAuth.js';
 
 export const studioCommentRoutes = new Hono<AppEnv>();
-
-// Assert page ownership helper
-async function assertPageOwner(pageId: string, userId: string): Promise<boolean> {
-  const [p] = await db.select({ id: studioPages.id }).from(studioPages)
-    .where(and(eq(studioPages.id, pageId), eq(studioPages.createdBy, userId))).limit(1);
-  return !!p;
-}
 
 // List open comments for a page
 studioCommentRoutes.get('/:pageId/comments', async (c) => {
@@ -38,6 +32,16 @@ studioCommentRoutes.post('/:pageId/comments', async (c) => {
   });
   const parsed = schema.safeParse(body);
   if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
+
+  if (parsed.data.parentId) {
+    const [parent] = await db
+      .select({ id: studioComments.id, parentId: studioComments.parentId })
+      .from(studioComments)
+      .where(eq(studioComments.id, parsed.data.parentId))
+      .limit(1);
+    if (!parent) return c.json({ data: null, error: 'Parent comment not found' }, 404);
+    if (parent.parentId !== null) return c.json({ data: null, error: 'Cannot reply to a reply' }, 422);
+  }
 
   const [row] = await db.insert(studioComments).values({
     pageId:    c.req.param('pageId'),

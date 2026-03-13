@@ -1,21 +1,12 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/index.js';
-import { studioPageHistory, studioPages } from '../db/schema.js';
+import { studioPageHistory } from '../db/schema.js';
 import { eq, desc, and, inArray } from 'drizzle-orm';
 import type { AppEnv } from '../types.js';
+import { assertPageOwner } from './_pageAuth.js';
 
 export const studioHistoryRoutes = new Hono<AppEnv>();
-
-// Helper: verify the page belongs to the requesting user
-async function assertPageOwner(pageId: string, userId: string): Promise<boolean> {
-  const [page] = await db
-    .select({ id: studioPages.id })
-    .from(studioPages)
-    .where(and(eq(studioPages.id, pageId), eq(studioPages.createdBy, userId)))
-    .limit(1);
-  return !!page;
-}
 
 // Helper: prune snapshots beyond the 50 most recent for a page
 async function pruneHistory(pageId: string): Promise<void> {

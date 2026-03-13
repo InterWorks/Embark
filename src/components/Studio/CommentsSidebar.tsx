@@ -17,11 +17,12 @@ interface Props {
   onClose: () => void;
   // Called when a comment is clicked so editor can highlight the mark
   onFocusComment?: (commentId: string) => void;
+  onRemoveCommentMark?: (commentId: string) => void;
   pendingCommentId?: string | null;
   onCommentSubmitted?: () => void;
 }
 
-export function CommentsSidebar({ pageId, onClose, onFocusComment, pendingCommentId, onCommentSubmitted }: Props) {
+export function CommentsSidebar({ pageId, onClose, onFocusComment, onRemoveCommentMark, pendingCommentId, onCommentSubmitted }: Props) {
   const [comments, setComments] = useState<StudioComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState<Record<string, string>>({});
@@ -51,9 +52,10 @@ export function CommentsSidebar({ pageId, onClose, onFocusComment, pendingCommen
     }
   }
 
-  async function handleResolve(commentId: string) {
+  async function handleResolve(commentId: string, markCommentId: string) {
     await api.patch(`/api/v1/studio/pages/${pageId}/comments/${commentId}/resolve`, {});
     setComments((prev) => prev.filter((c) => c.id !== commentId));
+    onRemoveCommentMark?.(markCommentId);
   }
 
   async function handleReply(parentId: string) {
@@ -146,7 +148,7 @@ export function CommentsSidebar({ pageId, onClose, onFocusComment, pendingCommen
                 className="flex-1 px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded-[3px] text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-yellow-400"
               />
               <button
-                onClick={() => handleResolve(c.id)}
+                onClick={() => handleResolve(c.id, c.commentId)}
                 className="px-2 py-1 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-700 rounded-[3px] hover:border-zinc-500 transition-colors"
                 title="Resolve"
               >

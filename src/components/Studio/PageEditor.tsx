@@ -160,6 +160,21 @@ export function PageEditor({
     setShowMenu(false);
   }, [page, title, icon, templateName, templateDesc, templateCategory, onSaveAsTemplate]);
 
+  const handleRemoveCommentMark = useCallback((commentId: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    // Find all positions in the doc that have a 'comment' mark with this commentId
+    editor.state.doc.descendants((node, pos) => {
+      const mark = node.marks.find(
+        (m) => m.type.name === 'comment' && m.attrs.commentId === commentId
+      );
+      if (mark) {
+        const tr = editor.state.tr.removeMark(pos, pos + node.nodeSize, mark.type);
+        editor.view.dispatch(tr);
+      }
+    });
+  }, []);
+
   const handleInsertContent = useCallback((text: string) => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -517,6 +532,7 @@ export function PageEditor({
           <CommentsSidebar
             pageId={page.id}
             onClose={() => { setShowComments(false); setPendingCommentId(null); }}
+            onRemoveCommentMark={handleRemoveCommentMark}
             onFocusComment={(commentId) => {
               // Scroll/focus is best-effort; the highlight via CommentMark is always visible
               editorRef.current?.commands.focus();
