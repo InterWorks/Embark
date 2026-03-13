@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (data: RegisterData): Promise<void> => {
     const response = await api.post<{ token: string; user: ApiUser }>(
       '/api/v1/auth/register',
-      { email: data.email, username: data.username, password: data.password }
+      { email: data.email, username: data.username, password: data.password, ...(data.phone !== undefined && { phone: data.phone }) }
     );
     if (!response.data) {
       throw new Error(response.error ?? 'Registration failed');
