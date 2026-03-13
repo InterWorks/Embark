@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import './tiptap-editor.css';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -12,8 +12,12 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
+import Collaboration from '@tiptap/extension-collaboration';
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import type { JSONContent } from '@tiptap/core';
 import type { Editor } from '@tiptap/react';
+import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
 import { SlashExtension } from './SlashExtension';
 import { SlashMenu } from './SlashMenu';
 import { BubbleToolbar } from './BubbleToolbar';
@@ -23,26 +27,56 @@ import { ClientMentionNode } from './ClientMentionNode';
 import { createClientMentionExtension } from './ClientMentionExtension';
 import { useClientContext } from '../../../context/ClientContext';
 
-const EMPTY_DOC: JSONContent = { type: 'doc', content: [{ type: 'paragraph' }] };
+const WS_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3001')
+  .replace(/^http/, 'ws');
+
+export interface CollabUser {
+  id: string;
+  name: string;
+  color: string;
+  emoji?: string;
+}
 
 interface Props {
-  content: JSONContent;
+  pageId: string;
+  currentUser: CollabUser;
   onChange: (content: JSONContent) => void;
   editable?: boolean;
   editorRef?: React.MutableRefObject<Editor | null>;
 }
 
-export function TiptapEditor({ content, onChange, editable = true, editorRef }: Props) {
-  // Guard against old localStorage data (blocks array format)
-  const safeContent = (content && content.type === 'doc') ? content : EMPTY_DOC;
-
+export function TiptapEditor({ pageId, currentUser, onChange, editable = true, editorRef }: Props) {
   const { clients } = useClientContext();
   const clientsRef = useRef(clients);
   useEffect(() => { clientsRef.current = clients; }, [clients]);
 
+  // Y.Doc is stable per pageId — recreated only when navigating to a different page
+  const ydoc = useMemo(() => new Y.Doc(), [pageId]);
+
+  // WebsocketProvider connects to the Yjs room for this page
+  const provider = useMemo(() => {
+    const token = localStorage.getItem('embark-api-token') ?? '';
+    return new WebsocketProvider(
+      `${WS_BASE}/yjs`,
+      pageId,
+      ydoc,
+      { params: { token } }
+    );
+  }, [pageId, ydoc]);
+
+  // Destroy provider and ydoc when pageId changes or component unmounts
+  useEffect(() => {
+    return () => {
+      provider.destroy();
+      ydoc.destroy();
+    };
+  }, [provider, ydoc]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        // Disable StarterKit's built-in undo/redo — Yjs handles it via Y.UndoManager
+        undoRedo: false,
         codeBlock: { languageClassPrefix: 'language-' },
       }),
       Placeholder.configure({
@@ -63,10 +97,18 @@ export function TiptapEditor({ content, onChange, editable = true, editorRef }: 
       SlashExtension,
       ClientMentionNode,
       createClientMentionExtension(clientsRef),
+      // Collaboration replaces StarterKit's document — must come after other extensions
+      Collaboration.configure({ document: ydoc }),
+      CollaborationCursor.configure({
+        provider,
+        user: {
+          name: currentUser.emoji ? `${currentUser.name} ${currentUser.emoji}` : currentUser.name,
+          color: currentUser.color,
+        },
+      }),
     ],
-    content: safeContent,
+    // NO content prop — Yjs is the source of truth
     editable,
-    onUpdate: ({ editor: e }) => onChange(e.getJSON()),
   });
 
   // Expose editor instance via ref for parent components (e.g. save-as-template)
@@ -74,11 +116,21 @@ export function TiptapEditor({ content, onChange, editable = true, editorRef }: 
     if (editorRef) editorRef.current = editor;
   }, [editor, editorRef]);
 
-  // Destroy on unmount
+  // Destroy editor on unmount
   useEffect(() => {
     return () => { editor?.destroy(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Notify parent of content changes via Yjs observer (keeps word count, TOC in sync)
+  useEffect(() => {
+    if (!editor) return;
+    const handler = () => {
+      onChange(editor.getJSON());
+    };
+    editor.on('update', handler);
+    return () => { editor.off('update', handler); };
+  }, [editor, onChange]);
 
   function handleChipClick(e: React.MouseEvent) {
     const chip = (e.target as HTMLElement).closest('[data-client-mention]');

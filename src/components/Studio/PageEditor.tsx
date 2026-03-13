@@ -2,7 +2,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import type { JSONContent } from '@tiptap/core';
 import type { Editor } from '@tiptap/react';
 import type { StudioPage, StudioTemplateCategory } from '../../types';
-import { TiptapEditor } from './editor/TiptapEditor';
+import { TiptapEditor, type CollabUser } from './editor/TiptapEditor';
+import { useAuth } from '../../context/AuthContext';
 import { AIPageActions } from './editor/AIPageActions';
 import { TableOfContents } from './editor/TableOfContents';
 import { Modal } from '../UI/Modal';
@@ -43,6 +44,15 @@ interface Props {
   onOpenShortcuts: () => void;
 }
 
+function getCursorPrefs(): { color: string; emoji?: string } {
+  try {
+    const stored = localStorage.getItem('embark-cursor-prefs');
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  // Default: derive a color from the user's ID using a small palette
+  return { color: '#facc15' };
+}
+
 const CATEGORIES: { value: StudioTemplateCategory; label: string }[] = [
   { value: 'onboarding', label: 'Onboarding' },
   { value: 'meeting', label: 'Meeting' },
@@ -66,6 +76,15 @@ export function PageEditor({
   page, pages, onNavigate, onUpdateContent, onUpdatePage, onDeletePage, onTogglePin, onSaveAsTemplate,
   zenMode, onToggleZen, onOpenShortcuts,
 }: Props) {
+  const { currentUser: authUser } = useAuth();
+  const cursorPrefs = getCursorPrefs();
+  const collabUser: CollabUser = {
+    id: authUser?.id ?? 'anonymous',
+    name: authUser?.username ?? 'Anonymous',
+    color: cursorPrefs.color,
+    emoji: cursorPrefs.emoji,
+  };
+
   const [title, setTitle] = useState(page.title);
   const [icon, setIcon] = useState(page.icon);
   const [coverUrl, setCoverUrl] = useState<string | undefined>(page.coverUrl);
@@ -377,7 +396,8 @@ export function PageEditor({
         <div className="flex-1 overflow-y-auto" ref={editorScrollRef}>
           <div className="max-w-3xl">
             <TiptapEditor
-              content={page.content}
+              pageId={page.id}
+              currentUser={collabUser}
               onChange={handleContentChange}
               editorRef={editorRef}
             />

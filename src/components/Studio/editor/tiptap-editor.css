@@ -308,3 +308,30 @@
 .tiptap-editor .ProseMirror .client-mention-chip:hover {
   background: rgba(250, 204, 21, 0.2);
 }
+
+/* ─── Collaboration cursors ──────────────────────── */
+.tiptap-editor .collaboration-cursor__caret {
+  border-left: 2px solid;
+  border-right: none;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+  position: relative;
+  word-break: normal;
+}
+
+.tiptap-editor .collaboration-cursor__label {
+  border-radius: 3px 3px 3px 0;
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  left: -1px;
+  line-height: normal;
+  padding: 2px 5px;
+  position: absolute;
+  top: -1.4em;
+  user-select: none;
+  white-space: nowrap;
+  pointer-events: none;
+}
