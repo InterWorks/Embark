@@ -6,6 +6,7 @@ import { StudioSidebar } from './StudioSidebar';
 import { StudioSearch } from './StudioSearch';
 import { PageEditor } from './PageEditor';
 import { TemplateGallery } from './gallery/TemplateGallery';
+import { ShortcutsModal } from './ShortcutsModal';
 
 type SubView = 'editor' | 'gallery';
 
@@ -17,6 +18,7 @@ export function StudioView() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [zenMode, setZenMode] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -26,6 +28,14 @@ export function StudioView() {
       } else if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
         e.preventDefault();
         setZenMode((v) => !v);
+      } else if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Only when not typing in an input/textarea/contenteditable
+        const tag = (e.target as HTMLElement).tagName;
+        const isEditable = (e.target as HTMLElement).isContentEditable;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !isEditable) {
+          e.preventDefault();
+          setShowShortcuts(true);
+        }
       } else if (e.key === 'Escape') {
         // Only exit zen mode if no modal/dialog is currently open
         if (!document.querySelector('[role="dialog"]')) {
@@ -105,6 +115,7 @@ export function StudioView() {
             onSaveAsTemplate={saveAsTemplate}
             zenMode={zenMode}
             onToggleZen={() => setZenMode((v) => !v)}
+            onOpenShortcuts={() => setShowShortcuts(true)}
           />
         ) : subView === 'editor' ? (
           <div className="h-full flex items-center justify-center">
@@ -137,6 +148,7 @@ export function StudioView() {
           onClose={() => setShowSearch(false)}
         />
       )}
+      <ShortcutsModal isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
     </div>
   );
 }

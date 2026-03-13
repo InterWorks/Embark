@@ -39,6 +39,7 @@ interface Props {
   onSaveAsTemplate: (page: StudioPage, meta: SaveTemplateData) => void;
   zenMode: boolean;
   onToggleZen: () => void;
+  onOpenShortcuts: () => void;
 }
 
 const CATEGORIES: { value: StudioTemplateCategory; label: string }[] = [
@@ -62,7 +63,7 @@ function buildPath(page: StudioPage, pages: StudioPage[]): StudioPage[] {
 
 export function PageEditor({
   page, pages, onNavigate, onUpdateContent, onUpdatePage, onDeletePage, onTogglePin, onSaveAsTemplate,
-  zenMode, onToggleZen,
+  zenMode, onToggleZen, onOpenShortcuts,
 }: Props) {
   const [title, setTitle] = useState(page.title);
   const [icon, setIcon] = useState(page.icon);
@@ -229,6 +230,18 @@ export function PageEditor({
         </div>
 
         {saved && <span className="text-xs text-zinc-500 font-medium flex-shrink-0">Saved</span>}
+
+        {/* Keyboard shortcuts */}
+        <button
+          onClick={onOpenShortcuts}
+          className="p-1.5 rounded-[4px] text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+          title="Keyboard shortcuts (?)"
+          aria-label="Show keyboard shortcuts"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm12 7H6a2 2 0 01-2-2V8a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2z" />
+          </svg>
+        </button>
 
         {/* Focus / Zen toggle */}
         <button
