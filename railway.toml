@@ -1,7 +1,16 @@
-[build]
-builder = "DOCKERFILE"
+[[services]]
+name = "web"
 dockerfilePath = "Dockerfile"
 
-[deploy]
+[services.deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "api"
+dockerfilePath = "server/Dockerfile.api"
+buildContext = "server"
+
+[services.deploy]
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
