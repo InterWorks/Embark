@@ -199,8 +199,9 @@ function AppContent() {
   // Listen for navigation events from deep components (e.g. EmailImportPanel)
   useEffect(() => {
     const handler = (e: Event) => {
-      const view = (e as CustomEvent<{ view: View }>).detail?.view;
-      if (view) setCurrentView(view);
+      const detail = (e as CustomEvent<{ view: View; clientId?: string }>).detail;
+      if (detail?.clientId) setSelectedClientId(detail.clientId);
+      if (detail?.view) setCurrentView(detail.view);
     };
     window.addEventListener('embark:navigate', handler);
     return () => window.removeEventListener('embark:navigate', handler);

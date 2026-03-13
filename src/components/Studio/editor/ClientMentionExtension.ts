@@ -69,13 +69,18 @@ export function createClientMentionExtension(clientsRef: MutableRefObject<Client
               onKeyDown(props: { event: KeyboardEvent }) {
                 if (props.event.key === 'Escape') {
                   el?.remove();
+                  el = null;
+                  component?.destroy();
+                  component = null;
                   return true;
                 }
                 return component?.ref?.onKeyDown(props.event) ?? false;
               },
               onExit() {
                 el?.remove();
+                el = null;
                 component?.destroy();
+                component = null;
               },
             };
           },
