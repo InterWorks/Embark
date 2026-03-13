@@ -10,6 +10,15 @@ import { tiptapToPlainText, tiptapToMarkdown } from '../../utils/studioHelpers';
 
 const ICON_OPTIONS = ['📄', '📝', '📋', '🗓️', '💡', '🚀', '⭐', '🔥', '💼', '🎯', '📊', '🤝', '🧠', '🗺️', '✅'];
 
+const COVER_GRADIENTS = [
+  'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+  'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+  'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+  'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+  'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+];
+
 interface SaveTemplateData {
   name: string;
   description: string;
@@ -55,6 +64,8 @@ export function PageEditor({
 }: Props) {
   const [title, setTitle] = useState(page.title);
   const [icon, setIcon] = useState(page.icon);
+  const [coverUrl, setCoverUrl] = useState<string | undefined>(page.coverUrl);
+  const [showCoverPicker, setShowCoverPicker] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -125,7 +136,66 @@ export function PageEditor({
   const readingTime = Math.max(1, Math.round(wordCount / 200));
 
   return (
-    <div className="h-full flex flex-col p-6 overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Cover banner */}
+      {coverUrl ? (
+        <div
+          className="relative w-full h-36 flex-shrink-0 group/cover"
+          style={{ background: coverUrl }}
+        >
+          <div className="absolute bottom-2 right-3 hidden group-hover/cover:flex gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setShowCoverPicker((v) => !v)}
+                className="px-2 py-1 text-xs font-bold bg-black/50 text-white rounded-[4px] hover:bg-black/70"
+              >
+                Change cover
+              </button>
+              {showCoverPicker && (
+                <div className="absolute z-30 bottom-full mb-1 right-0 bg-zinc-900 border-2 border-zinc-700 rounded-[4px] p-2 shadow-[3px_3px_0_0_#18181b] flex gap-2">
+                  {COVER_GRADIENTS.map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => { onUpdatePage(page.id, { coverUrl: g }); setCoverUrl(g); setShowCoverPicker(false); }}
+                      className="w-10 h-10 rounded-[4px] border-2 border-zinc-700 hover:border-yellow-400 transition-colors"
+                      style={{ background: g }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => { onUpdatePage(page.id, { coverUrl: undefined }); setCoverUrl(undefined); }}
+              className="px-2 py-1 text-xs font-bold bg-black/50 text-white rounded-[4px] hover:bg-black/70"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="group/addcover relative flex-shrink-0 h-8">
+          <button
+            onClick={() => setShowCoverPicker((v) => !v)}
+            className="absolute left-6 top-1 opacity-0 group-hover/addcover:opacity-100 transition-opacity text-xs text-zinc-500 hover:text-zinc-300"
+          >
+            + Add cover
+          </button>
+          {showCoverPicker && (
+            <div className="absolute z-30 top-full mt-1 left-6 bg-zinc-900 border-2 border-zinc-700 rounded-[4px] p-2 shadow-[3px_3px_0_0_#18181b] flex gap-2">
+              {COVER_GRADIENTS.map((g) => (
+                <button
+                  key={g}
+                  onClick={() => { onUpdatePage(page.id, { coverUrl: g }); setCoverUrl(g); setShowCoverPicker(false); }}
+                  className="w-10 h-10 rounded-[4px] border-2 border-zinc-700 hover:border-yellow-400 transition-colors"
+                  style={{ background: g }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-col p-6 flex-1 overflow-hidden">
       {/* Breadcrumb + Toolbar */}
       <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-zinc-700 flex-shrink-0">
         {/* Breadcrumb */}
@@ -309,6 +379,7 @@ export function PageEditor({
           </div>
         </div>
       </Modal>
+      </div>
     </div>
   );
 }
