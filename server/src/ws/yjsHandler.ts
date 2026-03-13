@@ -1,14 +1,10 @@
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
 import type { Server } from 'http';
-import { jwtVerify } from 'jose';
 import { setupWSConnection } from 'y-websocket/bin/utils';
+import { verifyToken } from '../lib/jwt.js';
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? 'dev-secret-change-me'
-);
-
-export function attachYjsWebSocket(httpServer: Server): void {
+export function attachYjsWebSocket(httpServer: Server): () => void {
   const wss = new WebSocketServer({ noServer: true });
 
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
@@ -16,8 +12,9 @@ export function attachYjsWebSocket(httpServer: Server): void {
     setupWSConnection(ws, req, { gc: true });
   });
 
-  httpServer.on('upgrade', async (req: IncomingMessage, socket, head) => {
-    const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
+  const upgradeHandler = async (req: IncomingMessage, socket: import('stream').Duplex, head: Buffer) => {
+    // Fix 1: use a static base — the host component only exists to satisfy the URL constructor
+    const url = new URL(req.url ?? '/', 'http://localhost');
 
     // Only handle upgrades on /yjs/* paths
     if (!url.pathname.startsWith('/yjs/')) {
@@ -34,7 +31,7 @@ export function attachYjsWebSocket(httpServer: Server): void {
     }
 
     try {
-      await jwtVerify(token, secret);
+      await verifyToken(token);
     } catch {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
@@ -44,5 +41,13 @@ export function attachYjsWebSocket(httpServer: Server): void {
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit('connection', ws, req);
     });
-  });
+  };
+
+  httpServer.on('upgrade', upgradeHandler);
+
+  // Fix 2: return cleanup so callers can tear down the listener and close the wss
+  return () => {
+    httpServer.off('upgrade', upgradeHandler);
+    wss.close();
+  };
 }

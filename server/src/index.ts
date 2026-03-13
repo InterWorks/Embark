@@ -66,6 +66,6 @@ app.onError((err, c) => {
 const port = Number(process.env.PORT ?? 3001);
 console.log(`API server running on port ${port}`);
 const httpServer = serve({ fetch: app.fetch, port }) as unknown as Server;
-attachYjsWebSocket(httpServer);
+attachYjsWebSocket(httpServer); // return value intentionally ignored in production
 
 export default app;
