@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import type { StudioPage } from '../../types';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 
@@ -8,17 +9,89 @@ interface PageTreeNodeProps {
   activePage: StudioPage | null;
   onSelect: (page: StudioPage) => void;
   onAddChild: (parentId: string) => void;
+  onUpdatePage: (id: string, data: Partial<StudioPage>) => void;
+  onDeletePage: (id: string) => void;
+  onTogglePin: (id: string) => void;
+  openMenuId: string | null;
+  setOpenMenuId: (id: string | null) => void;
 }
 
-function PageTreeNode({ page, depth, pages, activePage, onSelect, onAddChild }: PageTreeNodeProps) {
+function PageTreeNode({
+  page,
+  depth,
+  pages,
+  activePage,
+  onSelect,
+  onAddChild,
+  onUpdatePage,
+  onDeletePage,
+  onTogglePin,
+  openMenuId,
+  setOpenMenuId,
+}: PageTreeNodeProps) {
   const children = pages.filter((p) => p.parentId === page.id);
   const [expanded, setExpanded] = useLocalStorage(`studio-sidebar-exp-${page.id}`, true);
   const isActive = activePage?.id === page.id;
 
+  const showMenu = openMenuId === page.id;
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(page.title);
+
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Keep renameValue fresh when page.title changes externally
+  useEffect(() => {
+    if (!isRenaming) setRenameValue(page.title);
+  }, [page.title, isRenaming]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showMenu) return;
+    function handler(e: MouseEvent) {
+      if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMenu, setOpenMenuId]);
+
+  function commitRename() {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== page.title) {
+      onUpdatePage(page.id, { title: trimmed });
+    }
+    setIsRenaming(false);
+  }
+
+  function handleDelete() {
+    setOpenMenuId(null);
+    if (window.confirm(`Delete "${page.title || 'Untitled'}"? This cannot be undone.`)) {
+      onDeletePage(page.id);
+    }
+  }
+
+  function handleRename() {
+    setRenameValue(page.title);
+    setOpenMenuId(null);
+    setIsRenaming(true);
+  }
+
+  function handleAddSubpage() {
+    setOpenMenuId(null);
+    onAddChild(page.id);
+  }
+
+  function handleTogglePin() {
+    setOpenMenuId(null);
+    onTogglePin(page.id);
+  }
+
   return (
     <div>
       <div
-        className={`group flex items-center gap-1 rounded-[4px] px-1.5 py-1 cursor-pointer transition-colors ${
+        ref={rowRef}
+        className={`relative group flex items-center gap-1 rounded-[4px] px-1.5 py-1 cursor-pointer transition-colors ${
           isActive ? 'bg-yellow-400/10 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
         }`}
         style={{ paddingLeft: `${6 + depth * 14}px` }}
@@ -31,22 +104,73 @@ function PageTreeNode({ page, depth, pages, activePage, onSelect, onAddChild }: 
         >
           {expanded ? '▾' : '▸'}
         </button>
+
+        {isRenaming ? (
+          <>
+            <span className="text-sm flex-shrink-0">{page.icon}</span>
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename();
+                if (e.key === 'Escape') { setRenameValue(page.title); setIsRenaming(false); }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 bg-transparent border-b border-yellow-400 text-sm text-zinc-100 outline-none px-0.5"
+            />
+          </>
+        ) : (
+          <button
+            onClick={() => onSelect(page)}
+            className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+          >
+            <span className="text-sm flex-shrink-0">{page.icon}</span>
+            <span className={`text-sm truncate ${isActive ? 'font-bold text-zinc-100' : 'font-medium'}`}>
+              {page.title || 'Untitled'}
+            </span>
+          </button>
+        )}
+
+        {/* Context menu button */}
         <button
-          onClick={() => onSelect(page)}
-          className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+          onClick={(e) => { e.stopPropagation(); setOpenMenuId(showMenu ? null : page.id); }}
+          className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-opacity flex-shrink-0 text-xs leading-none"
+          title="Page options"
         >
-          <span className="text-sm flex-shrink-0">{page.icon}</span>
-          <span className={`text-sm truncate ${isActive ? 'font-bold text-zinc-100' : 'font-medium'}`}>
-            {page.title || 'Untitled'}
-          </span>
+          ⋯
         </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onAddChild(page.id); }}
-          className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-opacity flex-shrink-0"
-          title="Add subpage"
-        >
-          +
-        </button>
+
+        {/* Dropdown menu */}
+        {showMenu && (
+          <div className="absolute right-0 top-full mt-0.5 w-36 bg-zinc-900 border-2 border-zinc-700 rounded-[4px] shadow-[3px_3px_0_0_#18181b] z-50">
+            <button
+              onClick={handleRename}
+              className="w-full text-left px-3 py-1.5 text-xs font-bold text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+            >
+              <span>✏️</span> Rename
+            </button>
+            <button
+              onClick={handleAddSubpage}
+              className="w-full text-left px-3 py-1.5 text-xs font-bold text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+            >
+              <span>+</span> Add subpage
+            </button>
+            <button
+              onClick={handleTogglePin}
+              className="w-full text-left px-3 py-1.5 text-xs font-bold text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+            >
+              <span>📌</span> {page.isPinned ? 'Unpin' : 'Pin'}
+            </button>
+            <button
+              onClick={handleDelete}
+              className="w-full text-left px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+            >
+              <span>🗑️</span> Delete
+            </button>
+          </div>
+        )}
       </div>
       {expanded && children.map((child) => (
         <PageTreeNode
@@ -57,6 +181,11 @@ function PageTreeNode({ page, depth, pages, activePage, onSelect, onAddChild }: 
           activePage={activePage}
           onSelect={onSelect}
           onAddChild={onAddChild}
+          onUpdatePage={onUpdatePage}
+          onDeletePage={onDeletePage}
+          onTogglePin={onTogglePin}
+          openMenuId={openMenuId}
+          setOpenMenuId={setOpenMenuId}
         />
       ))}
     </div>
@@ -72,6 +201,9 @@ interface Props {
   onOpenGallery: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onUpdatePage: (id: string, data: Partial<StudioPage>) => void;
+  onDeletePage: (id: string) => void;
+  onTogglePin: (id: string) => void;
 }
 
 export function StudioSidebar({
@@ -83,7 +215,12 @@ export function StudioSidebar({
   onOpenGallery,
   collapsed,
   onToggleCollapse,
+  onUpdatePage,
+  onDeletePage,
+  onTogglePin,
 }: Props) {
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
   const rootPages = pages.filter((p) => !p.parentId);
   const pinnedPages = rootPages.filter((p) => p.isPinned);
   const unpinnedPages = rootPages.filter((p) => !p.isPinned);
@@ -151,6 +288,11 @@ export function StudioSidebar({
                     activePage={activePage}
                     onSelect={onSelect}
                     onAddChild={onCreateSubPage}
+                    onUpdatePage={onUpdatePage}
+                    onDeletePage={onDeletePage}
+                    onTogglePin={onTogglePin}
+                    openMenuId={openMenuId}
+                    setOpenMenuId={setOpenMenuId}
                   />
                 ))}
               </div>
@@ -164,6 +306,11 @@ export function StudioSidebar({
                 activePage={activePage}
                 onSelect={onSelect}
                 onAddChild={onCreateSubPage}
+                onUpdatePage={onUpdatePage}
+                onDeletePage={onDeletePage}
+                onTogglePin={onTogglePin}
+                openMenuId={openMenuId}
+                setOpenMenuId={setOpenMenuId}
               />
             ))}
           </>

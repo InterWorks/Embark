@@ -8,11 +8,16 @@ import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableHeader from '@tiptap/extension-table-header';
+import TableCell from '@tiptap/extension-table-cell';
 import type { JSONContent } from '@tiptap/core';
 import type { Editor } from '@tiptap/react';
 import { SlashExtension } from './SlashExtension';
 import { SlashMenu } from './SlashMenu';
 import { BubbleToolbar } from './BubbleToolbar';
+import { ToggleNode } from './ToggleNode';
 
 const EMPTY_DOC: JSONContent = { type: 'doc', content: [{ type: 'paragraph' }] };
 
@@ -41,6 +46,11 @@ export function TiptapEditor({ content, onChange, editable = true, editorRef }: 
       Image,
       Link.configure({ openOnClick: false }),
       Underline,
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      ToggleNode,
       SlashExtension,
     ],
     content: safeContent,
