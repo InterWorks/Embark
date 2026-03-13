@@ -61,14 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     apiFetch<ApiUser>('/api/v1/auth/me', { skipRedirectOn401: true }).then(response => {
       if (response.data) {
         setCurrentUser(mapApiUser(response.data));
-      } else {
-        // Token is stale or invalid — apiFetch already called clearToken() on 401
-        clearToken();
+      } else if (response.code === 'UNAUTHORIZED') {
+        // Explicit 401 — token is invalid/expired; apiFetch already cleared it
         setCurrentUser(null);
       }
+      // NETWORK_ERROR or other transient failure: keep the token so the next
+      // page load can restore the session once the API is reachable again.
     }).catch(() => {
-      clearToken();
-      setCurrentUser(null);
+      // Don't clear token on unexpected exception (e.g. API cold start)
     }).finally(() => {
       setInitializing(false);
     });
