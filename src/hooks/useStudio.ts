@@ -133,7 +133,7 @@ export function useStudio() {
     const { encodeStateAsUpdate } = await import('yjs');
     const update = encodeStateAsUpdate(ydoc);
     // Convert Uint8Array to base64
-    const snapshot = btoa(String.fromCharCode(...update));
+    const snapshot = btoa(Array.from(update, (b) => String.fromCharCode(b)).join(''));
     await api.post(`/api/v1/studio/pages/${pageId}/history`, { snapshot });
   }, []);
 

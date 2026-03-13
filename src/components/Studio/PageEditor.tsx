@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import type { JSONContent } from '@tiptap/core';
 import type { Editor } from '@tiptap/react';
 import type { WebsocketProvider } from 'y-websocket';
+import * as Y from 'yjs';
 import type { StudioPage, StudioTemplateCategory } from '../../types';
 import { TiptapEditor, type CollabUser } from './editor/TiptapEditor';
 import { useAuth } from '../../context/AuthContext';
@@ -13,7 +14,6 @@ import { tiptapToPlainText, tiptapToMarkdown } from '../../utils/studioHelpers';
 import { usePresence, type PresenceUser } from '../../hooks/usePresence';
 import { CursorPickerPopover, getCursorPrefs, type CursorPrefs } from './CursorPickerPopover';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
-import { api } from '../../lib/api';
 
 const ICON_OPTIONS = ['📄', '📝', '📋', '🗓️', '💡', '🚀', '⭐', '🔥', '💼', '🎯', '📊', '🤝', '🧠', '🗺️', '✅'];
 
@@ -74,6 +74,7 @@ export function PageEditor({
 }: Props) {
   const { currentUser: authUser } = useAuth();
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
+  const [ydoc, setYdoc] = useState<Y.Doc | null>(null);
   const [showCursorPicker, setShowCursorPicker] = useState(false);
   const [cursorPrefs, setCursorPrefs] = useState<CursorPrefs>(getCursorPrefs);
   const collabUser: CollabUser = {
@@ -472,6 +473,7 @@ export function PageEditor({
               onChange={handleContentChange}
               editorRef={editorRef}
               onProviderReady={setProvider}
+              onYdocReady={setYdoc}
             />
           </div>
         </div>
@@ -482,12 +484,12 @@ export function PageEditor({
           <VersionHistoryPanel
             pageId={page.id}
             onClose={() => setShowHistory(false)}
-            onRestore={(_snapshot) => {
-              // Phase 5: placeholder restore — confirm then patch page with current editor JSON
-              if (confirm('Restore this version? The page will reload.')) {
-                api.patch(`/api/v1/studio/pages/${page.id}`, { content: page.content });
-                setShowHistory(false);
-              }
+            onRestore={(snapshot) => {
+              if (!ydoc) return;
+              if (!confirm('Restore this version? This will overwrite the current content.')) return;
+              const decoded = Uint8Array.from(atob(snapshot), c => c.charCodeAt(0));
+              Y.applyUpdate(ydoc, decoded);
+              setShowHistory(false);
             }}
           />
         )}

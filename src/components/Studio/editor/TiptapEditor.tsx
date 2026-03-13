@@ -44,9 +44,10 @@ interface Props {
   editable?: boolean;
   editorRef?: React.MutableRefObject<Editor | null>;
   onProviderReady?: (provider: WebsocketProvider | null) => void;
+  onYdocReady?: (ydoc: Y.Doc | null) => void;
 }
 
-export function TiptapEditor({ pageId, currentUser, onChange, editable = true, editorRef, onProviderReady }: Props) {
+export function TiptapEditor({ pageId, currentUser, onChange, editable = true, editorRef, onProviderReady, onYdocReady }: Props) {
   const { clients } = useClientContext();
   const clientsRef = useRef(clients);
   useEffect(() => { clientsRef.current = clients; }, [clients]);
@@ -78,6 +79,12 @@ export function TiptapEditor({ pageId, currentUser, onChange, editable = true, e
     onProviderReady?.(provider);
     return () => onProviderReady?.(null);
   }, [provider, onProviderReady]);
+
+  // Notify parent when ydoc is ready (used for snapshot restore)
+  useEffect(() => {
+    onYdocReady?.(ydoc);
+    return () => onYdocReady?.(null);
+  }, [ydoc, onYdocReady]);
 
   const editor = useEditor({
     extensions: [

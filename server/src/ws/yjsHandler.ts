@@ -2,10 +2,25 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
 import type { Server } from 'http';
 import * as Y from 'yjs';
-import { setupWSConnection } from 'y-websocket/bin/utils';
+import { setupWSConnection, docs } from 'y-websocket/bin/utils';
 import { verifyToken } from '../lib/jwt.js';
 import { db } from '../db/index.js';
 import { studioPageHistory } from '../db/schema.js';
+import { eq, desc, inArray } from 'drizzle-orm';
+
+// Prune snapshots beyond the 50 most recent for a page
+async function pruneHistory(pageId: string): Promise<void> {
+  const rows = await db
+    .select({ id: studioPageHistory.id })
+    .from(studioPageHistory)
+    .where(eq(studioPageHistory.pageId, pageId))
+    .orderBy(desc(studioPageHistory.createdAt))
+    .offset(50);
+  if (rows.length > 0) {
+    const ids = rows.map(r => r.id);
+    await db.delete(studioPageHistory).where(inArray(studioPageHistory.id, ids));
+  }
+}
 
 export function attachYjsWebSocket(httpServer: Server): () => void {
   const wss = new WebSocketServer({ noServer: true });
@@ -21,7 +36,6 @@ export function attachYjsWebSocket(httpServer: Server): () => void {
     // Save a snapshot when this client disconnects
     ws.on('close', async () => {
       try {
-        const { docs } = await import('y-websocket/bin/utils');
         const ydoc = docs.get(pageId);
         if (!ydoc) return;
 
@@ -33,6 +47,12 @@ export function attachYjsWebSocket(httpServer: Server): () => void {
           snapshot,
           // userId not available in WS context — null is fine
         });
+
+        try {
+          await pruneHistory(pageId);
+        } catch (err) {
+          console.error('Failed to prune history snapshots:', err);
+        }
       } catch (err) {
         console.error('Failed to save history snapshot:', err);
       }
