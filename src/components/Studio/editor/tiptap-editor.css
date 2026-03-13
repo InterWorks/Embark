@@ -182,3 +182,36 @@
   height: 0;
   pointer-events: none;
 }
+
+/* Tables */
+.tiptap-editor .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5rem 0;
+  table-layout: fixed;
+}
+
+.tiptap-editor .ProseMirror td,
+.tiptap-editor .ProseMirror th {
+  border: 1px solid #3f3f46;
+  padding: 0.4rem 0.6rem;
+  min-width: 80px;
+  vertical-align: top;
+  color: #d4d4d8;
+  position: relative;
+}
+
+.tiptap-editor .ProseMirror th {
+  background: #27272a;
+  font-weight: 700;
+  color: #f4f4f5;
+  text-align: left;
+}
+
+.tiptap-editor .ProseMirror .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(250, 204, 21, 0.1);
+  pointer-events: none;
+}

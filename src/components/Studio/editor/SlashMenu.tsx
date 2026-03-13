@@ -92,6 +92,18 @@ const COMMANDS: SlashCommand[] = [
     },
   },
   {
+    label: 'Table',
+    icon: '⊞',
+    desc: '3×3 table with header row',
+    action: (e) => {
+      const { $from } = e.state.selection;
+      e.chain().focus()
+        .deleteRange({ from: $from.start(), to: $from.pos })
+        .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+        .run();
+    },
+  },
+  {
     label: 'Divider',
     icon: '—',
     desc: 'Horizontal rule',
