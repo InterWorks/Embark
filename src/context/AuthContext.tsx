@@ -1,43 +1,6 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import type { StoredUser, AuthSession } from '../types';
-
-const USERS_KEY = 'embark_users';
-const SESSION_KEY = 'embark_session';
-
-function loadUsers(): StoredUser[] {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) ?? '[]');
-  } catch {
-    return [];
-  }
-}
-
-function saveUsers(users: StoredUser[]) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
-function loadSession(): AuthSession | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const session: AuthSession = JSON.parse(raw);
-    if (new Date(session.expiresAt) < new Date()) {
-      localStorage.removeItem(SESSION_KEY);
-      return null;
-    }
-    return session;
-  } catch {
-    return null;
-  }
-}
-
-function saveSession(session: AuthSession | null) {
-  if (session) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } else {
-    localStorage.removeItem(SESSION_KEY);
-  }
-}
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import type { StoredUser } from '../types';
+import { api, setToken, clearToken } from '../lib/api';
 
 export interface RegisterData {
   username: string;
@@ -46,86 +9,119 @@ export interface RegisterData {
   phone?: string;
 }
 
+// Shape returned by the API for a user object
+interface ApiUser {
+  id: string;
+  email: string;
+  username: string;
+  role?: string;
+  avatarUrl?: string;
+  characterClass?: StoredUser['characterClass'];
+  onboardingComplete?: boolean;
+  preferences?: unknown;
+  createdAt?: string;
+}
+
+function mapApiUser(apiUser: ApiUser): StoredUser {
+  return {
+    id: apiUser.id,
+    username: apiUser.username,
+    email: apiUser.email,
+    passwordHash: '',           // not returned by API — cleared on migration
+    avatarUrl: apiUser.avatarUrl,
+    characterClass: apiUser.characterClass,
+    onboardingComplete: apiUser.onboardingComplete ?? false,
+    createdAt: apiUser.createdAt ?? new Date().toISOString(),
+  };
+}
+
 interface AuthContextType {
   currentUser: StoredUser | null;
   isAuthenticated: boolean;
-  login: (usernameOrEmail: string, password: string) => void;
-  register: (data: RegisterData) => void;
-  logout: () => void;
-  updateUser: (updates: Partial<StoredUser>) => void;
+  login: (usernameOrEmail: string, password: string) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (updates: Partial<StoredUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<AuthSession | null>(loadSession);
+  const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
+  const [initializing, setInitializing] = useState(true);
 
-  const getCurrentUser = useCallback((): StoredUser | null => {
-    if (!session) return null;
-    const users = loadUsers();
-    return users.find(u => u.id === session.userId) ?? null;
-  }, [session]);
+  // On mount: if a token exists, restore the session by fetching /me
+  useEffect(() => {
+    const token = localStorage.getItem('embark-api-token');
+    if (!token) {
+      setInitializing(false);
+      return;
+    }
+    api.get<ApiUser>('/api/v1/auth/me').then(response => {
+      if (response.data) {
+        setCurrentUser(mapApiUser(response.data));
+      } else {
+        // Token is stale or invalid — apiFetch already called clearToken() on 401
+        clearToken();
+        setCurrentUser(null);
+      }
+    }).catch(() => {
+      clearToken();
+      setCurrentUser(null);
+    }).finally(() => {
+      setInitializing(false);
+    });
+  }, []);
 
-  const currentUser = getCurrentUser();
-
-  const login = useCallback((usernameOrEmail: string, password: string) => {
-    const users = loadUsers();
-    const hash = btoa(password);
-    const user = users.find(
-      u => (u.username === usernameOrEmail || u.email === usernameOrEmail) && u.passwordHash === hash
+  const login = useCallback(async (usernameOrEmail: string, password: string): Promise<void> => {
+    const response = await api.post<{ token: string; user: ApiUser }>(
+      '/api/v1/auth/login',
+      { email: usernameOrEmail, password }
     );
-    if (!user) throw new Error('Invalid credentials');
-    const newSession: AuthSession = {
-      userId: user.id,
-      username: user.username,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    };
-    saveSession(newSession);
-    setSession(newSession);
+    if (!response.data) {
+      throw new Error(response.error ?? 'Login failed');
+    }
+    setToken(response.data.token);
+    setCurrentUser(mapApiUser(response.data.user));
   }, []);
 
-  const register = useCallback((data: RegisterData) => {
-    const users = loadUsers();
-    if (users.some(u => u.username === data.username)) throw new Error('Username taken');
-    if (users.some(u => u.email === data.email)) throw new Error('Email taken');
-    const newUser: StoredUser = {
-      id: crypto.randomUUID(),
-      username: data.username,
-      email: data.email,
-      phone: data.phone,
-      passwordHash: btoa(data.password),
-      onboardingComplete: false,
-      createdAt: new Date().toISOString(),
-    };
-    saveUsers([...users, newUser]);
-    const newSession: AuthSession = {
-      userId: newUser.id,
-      username: newUser.username,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    };
-    saveSession(newSession);
-    setSession(newSession);
+  const register = useCallback(async (data: RegisterData): Promise<void> => {
+    const response = await api.post<{ token: string; user: ApiUser }>(
+      '/api/v1/auth/register',
+      { email: data.email, username: data.username, password: data.password }
+    );
+    if (!response.data) {
+      throw new Error(response.error ?? 'Registration failed');
+    }
+    setToken(response.data.token);
+    setCurrentUser(mapApiUser(response.data.user));
   }, []);
 
-  const logout = useCallback(() => {
-    saveSession(null);
-    setSession(null);
+  const logout = useCallback(async (): Promise<void> => {
+    await api.post('/api/v1/auth/logout', {});
+    clearToken();
+    setCurrentUser(null);
   }, []);
 
-  const updateUser = useCallback((updates: Partial<StoredUser>) => {
-    if (!session) return;
-    const users = loadUsers();
-    const idx = users.findIndex(u => u.id === session.userId);
-    if (idx === -1) return;
-    const updated = { ...users[idx], ...updates };
-    users[idx] = updated;
-    saveUsers(users);
-    // Force re-render by toggling session (same value but new reference)
-    setSession(s => s ? { ...s } : null);
-  }, [session]);
+  const updateUser = useCallback(async (updates: Partial<StoredUser>): Promise<void> => {
+    if (!currentUser) return;
+    const response = await api.patch<ApiUser>(`/api/v1/users/${currentUser.id}`, updates);
+    if (response.data) {
+      setCurrentUser(mapApiUser(response.data));
+    } else {
+      // Optimistically apply local changes even if API call had non-critical issues
+      setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
+    }
+  }, [currentUser]);
+
+  if (initializing) {
+    // Render nothing (or a loader) while we verify the stored token.
+    // Returning null avoids rendering children with a stale null user.
+    return null;
+  }
 
   return (
-    <AuthContext.Provider value={{ currentUser, isAuthenticated: !!currentUser, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ currentUser, isAuthenticated: currentUser !== null, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
