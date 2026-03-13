@@ -200,7 +200,7 @@ export const studioPages = pgTable('studio_pages', {
   title:      text('title').notNull().default('Untitled'),
   icon:       text('icon').notNull().default('📄'),
   content:    jsonb('content').notNull().default({ type: 'doc', content: [] }),
-  parentId:   uuid('parent_id').references((): AnyPgColumn => studioPages.id, { onDelete: 'set null' }),
+  parentId:   uuid('parent_id').references((): AnyPgColumn => studioPages.id, { onDelete: 'cascade' }),
   isPinned:   boolean('is_pinned').notNull().default(false),
   sortOrder:  integer('sort_order'),
   coverUrl:   text('cover_url'),

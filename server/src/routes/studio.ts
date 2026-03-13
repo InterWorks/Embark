@@ -2,14 +2,14 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { studioPages, studioTemplates } from '../db/schema.js';
-import { asc, desc, eq, sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import type { AppEnv } from '../types.js';
 
 export const studioRoutes = new Hono<AppEnv>();
 
 // ─── Pages ────────────────────────────────────────────
 studioRoutes.get('/pages', async (c) => {
-  const rows = await db.select().from(studioPages).orderBy(asc(studioPages.sortOrder), desc(studioPages.updatedAt));
+  const rows = await db.select().from(studioPages).orderBy(sql`studio_pages.sort_order ASC NULLS LAST`, desc(studioPages.updatedAt));
   return c.json({ data: rows, error: null });
 });
 

@@ -44,12 +44,25 @@ export function collectDescendantIds(id: string, pages: StudioPage[]): string[] 
 export function useStudio() {
   const [pages, setPages] = useState<StudioPage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Clear all pending debounce timers on unmount
+  useEffect(() => {
+    return () => {
+      debounceRef.current.forEach((timer) => clearTimeout(timer));
+      debounceRef.current.clear();
+    };
+  }, []);
 
   // Load pages from API on mount
   useEffect(() => {
     api.get<Record<string, unknown>[]>('/api/v1/studio/pages').then((res) => {
-      if (res.data) setPages(res.data.map(rowToPage));
+      if (res.data) {
+        setPages(res.data.map(rowToPage));
+      } else {
+        setError(res.error ?? 'Failed to load pages');
+      }
     }).finally(() => setLoading(false));
   }, []);
 
@@ -57,8 +70,10 @@ export function useStudio() {
     setPages((prev) => [page, ...prev]);
   }, []);
 
-  const createPage = useCallback(async (title = 'Untitled', icon = '📄'): Promise<StudioPage> => {
-    const res = await api.post<Record<string, unknown>>('/api/v1/studio/pages', { title, icon });
+  const createPage = useCallback(async (title = 'Untitled', icon = '📄', parentId?: string | null): Promise<StudioPage> => {
+    const body: Record<string, unknown> = { title, icon };
+    if (parentId !== undefined) body.parentId = parentId;
+    const res = await api.post<Record<string, unknown>>('/api/v1/studio/pages', body);
     if (!res.data) throw new Error(res.error ?? 'Failed to create page');
     const page = rowToPage(res.data);
     setPages((prev) => [page, ...prev]);
@@ -130,5 +145,5 @@ export function useStudio() {
     });
   }, []);
 
-  return { pages, loading, addPage, createPage, updatePage, deletePage, togglePin, updateContent, movePage, reorderPages };
+  return { pages, loading, error, addPage, createPage, updatePage, deletePage, togglePin, updateContent, movePage, reorderPages };
 }

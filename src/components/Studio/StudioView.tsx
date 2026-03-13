@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
+import type { JSONContent } from '@tiptap/core';
 import type { StudioPage } from '../../types';
 import { useStudio } from '../../hooks/useStudio';
 import { useStudioTemplates } from '../../hooks/useStudioTemplates';
+import { api } from '../../lib/api';
 import { StudioSidebar } from './StudioSidebar';
 import { StudioSearch } from './StudioSearch';
 import { PageEditor } from './PageEditor';
@@ -11,8 +13,8 @@ import { ShortcutsModal } from './ShortcutsModal';
 type SubView = 'editor' | 'gallery';
 
 export function StudioView() {
-  const { pages, loading, addPage, createPage, updatePage, deletePage, togglePin, updateContent, movePage, reorderPages } = useStudio();
-  const { templates, useTemplate, saveAsTemplate, deleteUserTemplate } = useStudioTemplates();
+  const { pages, loading, error, addPage, createPage, updatePage, deletePage, togglePin, updateContent, movePage, reorderPages } = useStudio();
+  const { templates, saveAsTemplate, deleteUserTemplate } = useStudioTemplates();
   const [subView, setSubView] = useState<SubView>('editor');
   const [activePage, setActivePage] = useState<StudioPage | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -54,11 +56,10 @@ export function StudioView() {
   }, [createPage]);
 
   const handleCreateSubPage = useCallback(async (parentId: string) => {
-    const page = await createPage('Untitled', '📄');
-    updatePage(page.id, { parentId });
-    setActivePage({ ...page, parentId });
+    const page = await createPage('Untitled', '📄', parentId);
+    setActivePage(page);
     setSubView('editor');
-  }, [createPage, updatePage]);
+  }, [createPage]);
 
   const handleOpenPage = useCallback((page: StudioPage) => {
     setActivePage(page);
@@ -70,12 +71,25 @@ export function StudioView() {
     if (activePage?.id === id) setActivePage(null);
   }, [deletePage, activePage]);
 
-  const handleUseTemplate = useCallback((templateId: string) => {
-    const newPage = useTemplate(templateId);
-    addPage(newPage);
-    setActivePage(newPage);
+  const handleUseTemplate = useCallback(async (templateId: string) => {
+    const res = await api.post<Record<string, unknown>>(`/api/v1/studio/templates/${templateId}/use`, {});
+    if (!res.data) return;
+    const page: StudioPage = {
+      id:        res.data.id as string,
+      title:     (res.data.title as string) ?? 'Untitled',
+      icon:      (res.data.icon as string) ?? '📄',
+      content:   (res.data.content as JSONContent) ?? { type: 'doc', content: [] },
+      parentId:  (res.data.parentId as string | null) ?? null,
+      isPinned:  (res.data.isPinned as boolean) ?? false,
+      sortOrder: res.data.sortOrder as number | undefined,
+      coverUrl:  res.data.coverUrl as string | undefined,
+      createdAt: res.data.createdAt as string,
+      updatedAt: res.data.updatedAt as string,
+    };
+    addPage(page);
+    setActivePage(page);
     setSubView('editor');
-  }, [useTemplate, addPage]);
+  }, [addPage]);
 
   // Sync active page with latest state (title/icon updates propagate here)
   const currentPage = activePage
@@ -119,7 +133,9 @@ export function StudioView() {
           />
         ) : subView === 'editor' ? (
           <div className="h-full flex items-center justify-center">
-            {loading ? (
+            {error ? (
+              <p className="text-zinc-500 text-sm">Could not load pages. Please refresh.</p>
+            ) : loading ? (
               <div className="text-zinc-400 text-sm">Loading pages…</div>
             ) : (
               <div className="text-center">
