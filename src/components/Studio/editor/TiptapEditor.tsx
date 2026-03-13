@@ -43,13 +43,14 @@ interface Props {
   currentUser: CollabUser;
   onChange: (content: JSONContent) => void;
   editable?: boolean;
+  initialContent?: JSONContent;
   editorRef?: React.MutableRefObject<Editor | null>;
   onProviderReady?: (provider: WebsocketProvider | null) => void;
   onYdocReady?: (ydoc: Y.Doc | null) => void;
   onAddComment?: (commentId: string) => void;
 }
 
-export function TiptapEditor({ pageId, currentUser, onChange, editable = true, editorRef, onProviderReady, onYdocReady, onAddComment }: Props) {
+export function TiptapEditor({ pageId, currentUser, onChange, editable = true, initialContent, editorRef, onProviderReady, onYdocReady, onAddComment }: Props) {
   const { clients } = useClientContext();
   const clientsRef = useRef(clients);
   useEffect(() => { clientsRef.current = clients; }, [clients]);
@@ -57,8 +58,10 @@ export function TiptapEditor({ pageId, currentUser, onChange, editable = true, e
   // Y.Doc is stable per pageId — recreated only when navigating to a different page
   const ydoc = useMemo(() => new Y.Doc(), [pageId]);
 
-  // WebsocketProvider connects to the Yjs room for this page
+  // WebsocketProvider connects to the Yjs room for this page.
+  // Skipped when editable === false (e.g. public shared page view).
   const provider = useMemo(() => {
+    if (!editable) return null;
     const token = localStorage.getItem('embark-api-token') ?? '';
     return new WebsocketProvider(
       `${WS_BASE}/yjs`,
@@ -66,12 +69,12 @@ export function TiptapEditor({ pageId, currentUser, onChange, editable = true, e
       ydoc,
       { params: { token } }
     );
-  }, [pageId, ydoc]);
+  }, [pageId, ydoc, editable]);
 
   // Destroy provider and ydoc when pageId changes or component unmounts
   useEffect(() => {
     return () => {
-      provider.destroy();
+      provider?.destroy();
       ydoc.destroy();
     };
   }, [provider, ydoc]);
@@ -116,13 +119,13 @@ export function TiptapEditor({ pageId, currentUser, onChange, editable = true, e
       CommentMark,
       // Collaboration replaces StarterKit's document — must come after other extensions
       Collaboration.configure({ document: ydoc }),
-      CollaborationCursor.configure({
+      ...(provider ? [CollaborationCursor.configure({
         provider,
         user: {
           name: currentUser.emoji ? `${currentUser.name} ${currentUser.emoji}` : currentUser.name,
           color: currentUser.color,
         },
-      }),
+      })] : []),
     ],
     // NO content prop — Yjs is the source of truth
     editable,
@@ -132,6 +135,15 @@ export function TiptapEditor({ pageId, currentUser, onChange, editable = true, e
   useEffect(() => {
     if (editorRef) editorRef.current = editor;
   }, [editor, editorRef]);
+
+  // Seed initial content for read-only/public views
+  useEffect(() => {
+    if (!initialContent || !editor) return;
+    // Only set if doc is empty (don't overwrite collab content)
+    if (editor.isEmpty) {
+      editor.commands.setContent(initialContent);
+    }
+  }, [editor, initialContent]);
 
   // Destroy editor on unmount
   useEffect(() => {
