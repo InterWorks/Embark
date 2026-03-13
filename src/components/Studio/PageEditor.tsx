@@ -71,7 +71,7 @@ export function PageEditor({
   zenMode, onToggleZen, onOpenShortcuts,
 }: Props) {
   const { currentUser: authUser } = useAuth();
-  const providerRef = useRef<WebsocketProvider | null>(null);
+  const [provider, setProvider] = useState<WebsocketProvider | null>(null);
   const [showCursorPicker, setShowCursorPicker] = useState(false);
   const [cursorPrefs, setCursorPrefs] = useState<CursorPrefs>(getCursorPrefs);
   const collabUser: CollabUser = {
@@ -80,7 +80,7 @@ export function PageEditor({
     color: cursorPrefs.color,
     emoji: cursorPrefs.emoji,
   };
-  const presenceUsers = usePresence(providerRef.current);
+  const presenceUsers = usePresence(provider);
 
   const [title, setTitle] = useState(page.title);
   const [icon, setIcon] = useState(page.icon);
@@ -118,6 +118,8 @@ export function PageEditor({
   }, [showCoverPicker]);
 
   const breadcrumb = buildPath(page, pages);
+
+  const handleCloseCursorPicker = useCallback(() => setShowCursorPicker(false), []);
 
   const handleContentChange = useCallback((content: JSONContent) => {
     onUpdateContent(page.id, content);
@@ -178,7 +180,6 @@ export function PageEditor({
 
   // Broadcast current user's cursor prefs via Yjs awareness
   useEffect(() => {
-    const provider = providerRef.current;
     if (!provider) return;
     provider.awareness.setLocalStateField('user', {
       name: collabUser.name,
@@ -186,7 +187,7 @@ export function PageEditor({
       emoji: collabUser.emoji,
       avatarUrl: authUser?.avatarUrl,
     });
-  }, [collabUser.name, collabUser.color, collabUser.emoji, authUser?.avatarUrl]);
+  }, [provider, collabUser.name, collabUser.color, collabUser.emoji, authUser?.avatarUrl]);
 
   const gradientPickerJSX = (positionClass: string, onPick: (g: string) => void) => (
     <div ref={coverPickerRef} className={`absolute z-30 bg-zinc-900 border-2 border-zinc-700 rounded-[4px] p-2 shadow-[3px_3px_0_0_#18181b] flex gap-2 ${positionClass}`}>
@@ -295,7 +296,7 @@ export function PageEditor({
           />
           {showCursorPicker && (
             <CursorPickerPopover
-              onClose={() => setShowCursorPicker(false)}
+              onClose={handleCloseCursorPicker}
               onChange={(p) => {
                 setCursorPrefs(p);
                 setShowCursorPicker(false);
@@ -450,7 +451,7 @@ export function PageEditor({
               currentUser={collabUser}
               onChange={handleContentChange}
               editorRef={editorRef}
-              providerRef={providerRef}
+              onProviderReady={setProvider}
             />
           </div>
         </div>
