@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { studioPages, studioTemplates } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { AppEnv } from '../types.js';
 
 export const studioRoutes = new Hono<AppEnv>();
@@ -107,16 +107,27 @@ studioRoutes.delete('/templates/:id', async (c) => {
 });
 
 studioRoutes.post('/templates/:id/use', async (c) => {
+  const templateId = c.req.param('id');
+
+  // Verify template exists before opening transaction
   const [template] = await db.select().from(studioTemplates)
-    .where(eq(studioTemplates.id, c.req.param('id'))).limit(1);
+    .where(eq(studioTemplates.id, templateId)).limit(1);
   if (!template) return c.json({ data: null, error: 'Not found' }, 404);
-  await db.update(studioTemplates)
-    .set({ usageCount: template.usageCount + 1 })
-    .where(eq(studioTemplates.id, template.id));
-  const [page] = await db.insert(studioPages).values({
-    title: template.name,
-    content: template.content as Record<string, unknown>,
-    createdBy: c.get('userId'),
-  }).returning();
+
+  const page = await db.transaction(async (tx) => {
+    // Atomic SQL-level increment — no read-modify-write race
+    await tx.update(studioTemplates)
+      .set({ usageCount: sql`${studioTemplates.usageCount} + 1` })
+      .where(eq(studioTemplates.id, templateId));
+
+    const [newPage] = await tx.insert(studioPages).values({
+      title: template.name,
+      content: template.content as Record<string, unknown>,
+      createdBy: c.get('userId'),
+    }).returning();
+
+    return newPage;
+  });
+
   return c.json({ data: page, error: null }, 201);
 });
