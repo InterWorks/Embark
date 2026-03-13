@@ -152,8 +152,23 @@ clientRoutes.post('/:id/checklist', async (c) => {
 
 clientRoutes.patch('/:id/checklist/:itemId', async (c) => {
   const body = await c.req.json().catch(() => null);
+  const schema = z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    status: z.string().optional(),
+    dueDate: z.string().optional(),
+    assignedTo: z.string().uuid().optional(),
+    phase: z.string().optional(),
+    priority: z.string().optional(),
+    subtasks: z.array(z.unknown()).optional(),
+    comments: z.array(z.unknown()).optional(),
+    attachments: z.array(z.unknown()).optional(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
+  const { dueDate, ...rest } = parsed.data;
   const [row] = await db.update(checklistItems)
-    .set({ ...body, updatedAt: new Date() })
+    .set({ ...rest, ...(dueDate ? { dueDate: new Date(dueDate) } : {}), updatedAt: new Date() })
     .where(and(eq(checklistItems.id, c.req.param('itemId')),
                eq(checklistItems.clientId, c.req.param('id')))).returning();
   if (!row) return c.json({ data: null, error: 'Not found' }, 404);
@@ -177,14 +192,41 @@ clientRoutes.get('/:id/phases', async (c) => {
 
 clientRoutes.post('/:id/phases', async (c) => {
   const body = await c.req.json().catch(() => null);
+  const schema = z.object({
+    name: z.string().min(1),
+    phaseOrder: z.number().int(),
+    status: z.string().optional(),
+    startedAt: z.string().optional(),
+    completedAt: z.string().optional(),
+    gateCriteria: z.record(z.unknown()).optional(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
+  const { startedAt, completedAt, ...rest } = parsed.data;
   const [row] = await db.insert(onboardingPhases)
-    .values({ clientId: c.req.param('id'), ...body }).returning();
+    .values({ clientId: c.req.param('id'), ...rest,
+      ...(startedAt ? { startedAt: new Date(startedAt) } : {}),
+      ...(completedAt ? { completedAt: new Date(completedAt) } : {}) }).returning();
   return c.json({ data: row, error: null }, 201);
 });
 
 clientRoutes.patch('/:id/phases/:phaseId', async (c) => {
   const body = await c.req.json().catch(() => null);
-  const [row] = await db.update(onboardingPhases).set(body)
+  const schema = z.object({
+    name: z.string().optional(),
+    phaseOrder: z.number().int().optional(),
+    status: z.string().optional(),
+    startedAt: z.string().optional(),
+    completedAt: z.string().optional(),
+    gateCriteria: z.record(z.unknown()).optional(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
+  const { startedAt, completedAt, ...rest } = parsed.data;
+  const [row] = await db.update(onboardingPhases)
+    .set({ ...rest,
+      ...(startedAt ? { startedAt: new Date(startedAt) } : {}),
+      ...(completedAt ? { completedAt: new Date(completedAt) } : {}) })
     .where(and(eq(onboardingPhases.id, c.req.param('phaseId')),
                eq(onboardingPhases.clientId, c.req.param('id')))).returning();
   if (!row) return c.json({ data: null, error: 'Not found' }, 404);
@@ -200,14 +242,34 @@ clientRoutes.get('/:id/milestones', async (c) => {
 
 clientRoutes.post('/:id/milestones', async (c) => {
   const body = await c.req.json().catch(() => null);
+  const schema = z.object({
+    title: z.string().min(1),
+    description: z.string().optional(),
+    dueDate: z.string().optional(),
+    completedAt: z.string().optional(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
+  const { completedAt, ...rest } = parsed.data;
   const [row] = await db.insert(milestones)
-    .values({ clientId: c.req.param('id'), ...body }).returning();
+    .values({ clientId: c.req.param('id'), ...rest,
+      ...(completedAt ? { completedAt: new Date(completedAt) } : {}) }).returning();
   return c.json({ data: row, error: null }, 201);
 });
 
 clientRoutes.patch('/:id/milestones/:milestoneId', async (c) => {
   const body = await c.req.json().catch(() => null);
-  const [row] = await db.update(milestones).set(body)
+  const schema = z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    dueDate: z.string().optional(),
+    completedAt: z.string().optional(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
+  const { completedAt, ...rest } = parsed.data;
+  const [row] = await db.update(milestones)
+    .set({ ...rest, ...(completedAt ? { completedAt: new Date(completedAt) } : {}) })
     .where(and(eq(milestones.id, c.req.param('milestoneId')),
                eq(milestones.clientId, c.req.param('id')))).returning();
   if (!row) return c.json({ data: null, error: 'Not found' }, 404);
@@ -230,8 +292,19 @@ clientRoutes.get('/:id/communication-log', async (c) => {
 
 clientRoutes.post('/:id/communication-log', async (c) => {
   const body = await c.req.json().catch(() => null);
+  const schema = z.object({
+    type: z.string().min(1),
+    subject: z.string().optional(),
+    content: z.string().optional(),
+    occurredAt: z.string().optional(),
+    metadata: z.record(z.unknown()).optional(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
+  const { occurredAt, ...rest } = parsed.data;
   const [row] = await db.insert(communicationLog)
-    .values({ clientId: c.req.param('id'), createdBy: c.get('userId'), ...body }).returning();
+    .values({ clientId: c.req.param('id'), createdBy: c.get('userId'), ...rest,
+      ...(occurredAt ? { occurredAt: new Date(occurredAt) } : {}) }).returning();
   return c.json({ data: row, error: null }, 201);
 });
 
@@ -244,15 +317,27 @@ clientRoutes.get('/:id/account-info', async (c) => {
 
 clientRoutes.put('/:id/account-info', async (c) => {
   const body = await c.req.json().catch(() => null);
+  const schema = z.object({
+    mrr: z.string().optional(),
+    arr: z.string().optional(),
+    contractValue: z.string().optional(),
+    contractStart: z.string().optional(),
+    contractEnd: z.string().optional(),
+    renewalDate: z.string().optional(),
+    npsScore: z.number().int().optional(),
+    paymentStatus: z.string().optional(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
   const existing = await db.select({ id: accountInfo.id }).from(accountInfo)
     .where(eq(accountInfo.clientId, c.req.param('id'))).limit(1);
   let row;
   if (existing.length > 0) {
-    [row] = await db.update(accountInfo).set({ ...body, updatedAt: new Date() })
+    [row] = await db.update(accountInfo).set({ ...parsed.data, updatedAt: new Date() })
       .where(eq(accountInfo.clientId, c.req.param('id'))).returning();
   } else {
     [row] = await db.insert(accountInfo)
-      .values({ clientId: c.req.param('id'), ...body }).returning();
+      .values({ clientId: c.req.param('id'), ...parsed.data }).returning();
   }
   return c.json({ data: row, error: null });
 });
@@ -266,14 +351,33 @@ clientRoutes.get('/:id/success-plans', async (c) => {
 
 clientRoutes.post('/:id/success-plans', async (c) => {
   const body = await c.req.json().catch(() => null);
+  const schema = z.object({
+    title: z.string().min(1),
+    description: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    status: z.string().optional(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
   const [row] = await db.insert(successPlans)
-    .values({ clientId: c.req.param('id'), createdBy: c.get('userId'), ...body }).returning();
+    .values({ clientId: c.req.param('id'), createdBy: c.get('userId'), ...parsed.data }).returning();
   return c.json({ data: row, error: null }, 201);
 });
 
 clientRoutes.patch('/:id/success-plans/:planId', async (c) => {
   const body = await c.req.json().catch(() => null);
-  const [row] = await db.update(successPlans).set({ ...body, updatedAt: new Date() })
+  const schema = z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    status: z.string().optional(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
+  const [row] = await db.update(successPlans)
+    .set({ ...parsed.data, updatedAt: new Date() })
     .where(and(eq(successPlans.id, c.req.param('planId')),
                eq(successPlans.clientId, c.req.param('id')))).returning();
   if (!row) return c.json({ data: null, error: 'Not found' }, 404);
@@ -313,8 +417,17 @@ clientRoutes.get('/:id/services', async (c) => {
 
 clientRoutes.post('/:id/services', async (c) => {
   const body = await c.req.json().catch(() => null);
+  const schema = z.object({
+    serviceId: z.string().uuid(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    customPrice: z.string().optional(),
+    notes: z.string().optional(),
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ data: null, error: 'Validation failed' }, 422);
   const [row] = await db.insert(clientServices)
-    .values({ clientId: c.req.param('id'), ...body }).returning();
+    .values({ clientId: c.req.param('id'), ...parsed.data }).returning();
   return c.json({ data: row, error: null }, 201);
 });
 
