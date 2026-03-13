@@ -83,9 +83,11 @@ export function PageEditor({
     return text.split(/\s+/).filter(Boolean).length;
   });
   const [showToc, setShowToc] = useState(false);
+  // liveContent tracks editor JSON immediately (not debounced) so TOC stays in sync
+  const [liveContent, setLiveContent] = useState<JSONContent>(page.content);
   const saveIndicatorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorRef = useRef<Editor | null>(null);
-  const editorScrollRef = useRef<HTMLDivElement>(null);
+  const editorScrollRef = useRef<HTMLDivElement | null>(null);
   const coverPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -103,6 +105,7 @@ export function PageEditor({
 
   const handleContentChange = useCallback((content: JSONContent) => {
     onUpdateContent(page.id, content);
+    setLiveContent(content);
     if (saveIndicatorRef.current) clearTimeout(saveIndicatorRef.current);
     setSaved(false);
     saveIndicatorRef.current = setTimeout(() => setSaved(true), 600);
@@ -381,7 +384,7 @@ export function PageEditor({
           </div>
         </div>
         {showToc && (
-          <TableOfContents content={page.content} editorScrollRef={editorScrollRef} />
+          <TableOfContents content={liveContent} editorScrollRef={editorScrollRef} />
         )}
       </div>
 
