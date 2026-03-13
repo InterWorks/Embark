@@ -1,4 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { StudioPage } from '../../types';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 
@@ -192,6 +207,20 @@ function PageTreeNode({
   );
 }
 
+function SortablePageTreeNode(props: PageTreeNodeProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.page.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <PageTreeNode {...props} />
+    </div>
+  );
+}
+
 interface Props {
   pages: StudioPage[];
   activePage: StudioPage | null;
@@ -205,6 +234,7 @@ interface Props {
   onDeletePage: (id: string) => void;
   onTogglePin: (id: string) => void;
   onOpenSearch: () => void;
+  onReorderPages: (orderedIds: string[]) => void;
 }
 
 export function StudioSidebar({
@@ -220,12 +250,30 @@ export function StudioSidebar({
   onDeletePage,
   onTogglePin,
   onOpenSearch,
+  onReorderPages,
 }: Props) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   const rootPages = pages.filter((p) => !p.parentId);
   const pinnedPages = rootPages.filter((p) => p.isPinned);
   const unpinnedPages = rootPages.filter((p) => !p.isPinned);
+
+  const sortedUnpinnedPages = [...unpinnedPages].sort(
+    (a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity)
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sortedUnpinnedPages.findIndex((p) => p.id === active.id);
+    const newIndex = sortedUnpinnedPages.findIndex((p) => p.id === over.id);
+    const newOrder = arrayMove(sortedUnpinnedPages, oldIndex, newIndex);
+    onReorderPages(newOrder.map((p) => p.id));
+  }
 
   if (collapsed) {
     return (
@@ -307,22 +355,33 @@ export function StudioSidebar({
                 ))}
               </div>
             )}
-            {unpinnedPages.map((page) => (
-              <PageTreeNode
-                key={page.id}
-                page={page}
-                depth={0}
-                pages={pages}
-                activePage={activePage}
-                onSelect={onSelect}
-                onAddChild={onCreateSubPage}
-                onUpdatePage={onUpdatePage}
-                onDeletePage={onDeletePage}
-                onTogglePin={onTogglePin}
-                openMenuId={openMenuId}
-                setOpenMenuId={setOpenMenuId}
-              />
-            ))}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={sortedUnpinnedPages.map((p) => p.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {sortedUnpinnedPages.map((page) => (
+                  <SortablePageTreeNode
+                    key={page.id}
+                    page={page}
+                    depth={0}
+                    pages={pages}
+                    activePage={activePage}
+                    onSelect={onSelect}
+                    onAddChild={onCreateSubPage}
+                    onUpdatePage={onUpdatePage}
+                    onDeletePage={onDeletePage}
+                    onTogglePin={onTogglePin}
+                    openMenuId={openMenuId}
+                    setOpenMenuId={setOpenMenuId}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           </>
         )}
       </div>

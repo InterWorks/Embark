@@ -10,7 +10,7 @@ import { TemplateGallery } from './gallery/TemplateGallery';
 type SubView = 'editor' | 'gallery';
 
 export function StudioView() {
-  const { pages, addPage, createPage, updatePage, deletePage, togglePin, updateContent, movePage } = useStudio();
+  const { pages, addPage, createPage, updatePage, deletePage, togglePin, updateContent, movePage, reorderPages } = useStudio();
   const { templates, useTemplate, saveAsTemplate, deleteUserTemplate } = useStudioTemplates();
   const [subView, setSubView] = useState<SubView>('editor');
   const [activePage, setActivePage] = useState<StudioPage | null>(null);
@@ -87,6 +87,7 @@ export function StudioView() {
         onDeletePage={handleDeletePage}
         onTogglePin={togglePin}
         onOpenSearch={() => setShowSearch(true)}
+        onReorderPages={reorderPages}
       />
 
       <div className="flex-1 min-w-0 overflow-hidden">

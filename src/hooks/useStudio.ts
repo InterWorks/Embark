@@ -89,5 +89,16 @@ export function useStudio() {
     );
   }, [setPages]);
 
-  return { pages, addPage, createPage, updatePage, deletePage, togglePin, updateContent, movePage };
+  const reorderPages = useCallback((orderedIds: string[]) => {
+    setPages((prev) => {
+      const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+      return prev.map((p) =>
+        orderMap.has(p.id)
+          ? { ...p, sortOrder: orderMap.get(p.id)!, updatedAt: new Date().toISOString() }
+          : p
+      );
+    });
+  }, [setPages]);
+
+  return { pages, addPage, createPage, updatePage, deletePage, togglePin, updateContent, movePage, reorderPages };
 }

@@ -719,6 +719,7 @@ export interface StudioPage {
   content: JSONContent;      // Tiptap ProseMirror JSON
   parentId: string | null;   // null = root page
   isPinned: boolean;
+  sortOrder?: number;
   coverUrl?: string;         // CSS gradient string for cover banner
   createdAt: string;         // ISO
   updatedAt: string;         // ISO
