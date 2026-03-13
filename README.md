@@ -8,8 +8,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![Tests](https://img.shields.io/badge/Tests-52_passing-22c55e?style=for-the-badge)](#)
-[![Version](https://img.shields.io/badge/Version-8.2-f59e0b?style=for-the-badge)](#)
+[![Tests](https://img.shields.io/badge/Tests-111_passing-22c55e?style=for-the-badge)](#)
+[![Version](https://img.shields.io/badge/Version-9.0-f59e0b?style=for-the-badge)](#)
 [![PWA](https://img.shields.io/badge/PWA-installable-a855f7?style=for-the-badge)](#)
 
 *Embark replaces the chaos of spreadsheets and scattered notes with a structured, gamified system that keeps every client onboarding on track — from first call to go-live.*
@@ -27,11 +27,45 @@ Most onboarding tools are either too simple (a checklist app) or too complex (an
 - ⚡ **Blazing fast** — runs entirely in the browser, no backend required
 - 🧩 **Modular** — configure exactly the dashboard you want
 - 🤖 **AI-assisted** — health summaries, risk briefs, portfolio intelligence, proactive anomaly detection
+- 📝 **Built-in Studio** — Notion-like workspace for docs, runbooks, and meeting notes alongside your client data
 - 📦 **PWA** — install it like a native app, works offline
 
 ---
 
-## 🆕 What's New in v8.2 — Security & Stability
+## 🆕 What's New in v9.0 — Embark Studio
+
+A full Notion-style writing workspace, now built into Embark. Create rich documents, meeting notes, SOPs, and runbooks — right alongside your client data.
+
+### 📝 Embark Studio — Core Editor
+Tiptap-powered rich-text editor with **13 slash commands**: Headings (H1–H3), bullet lists, numbered lists, to-do lists, code blocks, tables, toggle blocks, and callout blocks. Bubble toolbar for Bold, Italic, Underline, Inline Code, and Link. Unlimited nested pages with sidebar navigation.
+
+### 🎨 Page Cover Images
+Click **Add cover** above any page title to choose from 6 preset gradient banners — no file uploads, no storage bloat. Hover the banner to change or remove it.
+
+### 🧘 Focus / Zen Mode
+Press **Ctrl+\\** or click the Focus button to hide the sidebar and AI bar — just you and the editor. Press **Escape** to exit.
+
+### ↕️ Sidebar Drag-to-Reorder
+Drag the **⠿ handle** on any root page to reorder your workspace. Order persists across sessions. Pinned pages stay anchored at the top.
+
+### 📑 Table of Contents
+Click the **≡** button in any page to open a live right-side panel listing all H1/H2/H3 headings. Click any entry to scroll directly to that heading — updates in real-time as you type.
+
+### @ Client Mentions
+Type **@** in the editor to get a dropdown of your Embark clients. Select one to insert a styled `@ClientName` chip. Click the chip to jump directly to that client's card.
+
+### ⌨️ Keyboard Shortcuts Modal
+Press **?** anywhere in the Studio (or click the keyboard button in the toolbar) to see a full two-column reference of all Studio shortcuts — formatting, slash commands, and navigation.
+
+### 🔍 Cmd+K Quick Find
+Press **Ctrl+K** to open a live search across all page titles and content with breadcrumb navigation paths.
+
+### ⬇️ Markdown Export
+Export any page as a `.md` file from the **⋯ menu**. Word count and estimated reading time shown in the footer.
+
+---
+
+## 🔖 v8.2 — Security & Stability
 
 A focused hardening release addressing security vulnerabilities, data bugs, and performance issues surfaced by a full codebase audit.
 
@@ -59,7 +93,7 @@ See [CHANGELOG.md](./CHANGELOG.md) for the full list of 35 fixes.
 
 ---
 
-## 🔖 Previous: v8.1 — Email Bulk Import & Contact Export
+## 🔖 v8.1 — Email Bulk Import & Contact Export
 
 Onboard a whole batch of contacts without going through the intake wizard one at a time.
 
@@ -193,7 +227,7 @@ Generate a beautiful, **shareable two-way portal** for your clients. Clients can
 | ⚡ Build | Vite |
 | 🎨 Styling | Tailwind CSS v4 |
 | 💾 State | localStorage via custom hooks |
-| 🧪 Testing | Vitest — 52 tests passing |
+| 🧪 Testing | Vitest — 111 tests passing |
 | 📱 PWA | vite-plugin-pwa (installable, offline-capable) |
 | 🔍 Monitoring | Sentry (production only) |
 | 🚂 Deployment | Docker + nginx, Railway-ready |
@@ -254,6 +288,7 @@ Open [http://localhost:5173](http://localhost:5173), register an account, and th
 | 🔔 SLA Tracking | Warnings and breach alerts per client |
 | 📝 Notes & Comms | Rich notes with templates + full communication history with AI Draft |
 | 🪄 Milestones | Key events tracked separately from tasks |
+| 📝 Embark Studio | Notion-like editor: rich text, nested pages, slash commands, callout blocks, table of contents, @-mentions, drag-to-reorder, cover images, Zen mode, Cmd+K search, Markdown export |
 
 ---
 
