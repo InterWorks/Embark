@@ -5,6 +5,29 @@ import { webhookEndpoints, webhookDeliveries } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import type { AppEnv } from '../types.js';
 
+function isInternalUrl(urlString: string): boolean {
+  try {
+    const { hostname } = new URL(urlString);
+    const lower = hostname.toLowerCase();
+    // Block localhost variants
+    if (lower === 'localhost' || lower === '0.0.0.0') return true;
+    // Block IPv4 loopback
+    if (/^127\./.test(lower)) return true;
+    // Block IPv6 loopback
+    if (lower === '::1' || lower === '[::1]') return true;
+    // Block RFC 1918 private ranges
+    if (/^10\./.test(lower)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(lower)) return true;
+    if (/^192\.168\./.test(lower)) return true;
+    // Block link-local (AWS metadata, etc.)
+    if (/^169\.254\./.test(lower)) return true;
+    if (/^fe80:/i.test(lower)) return true;
+    return false;
+  } catch {
+    return true; // Unparseable URL = treat as internal
+  }
+}
+
 export const webhookRoutes = new Hono<AppEnv>();
 
 // ─── Endpoints CRUD ───────────────────────────────────
@@ -22,6 +45,9 @@ webhookRoutes.post('/', async (c) => {
   });
   const parsed = schema.safeParse(body);
   if (!parsed.success) return c.json({ data: null, error: 'Validation failed', details: parsed.error.flatten() }, 422);
+  if (isInternalUrl(parsed.data.url)) {
+    return c.json({ data: null, error: 'URL must be a publicly accessible address', code: 'VALIDATION_ERROR' }, 422);
+  }
   const [row] = await db.insert(webhookEndpoints)
     .values({ createdBy: c.get('userId'), ...parsed.data }).returning();
   return c.json({ data: row, error: null }, 201);
@@ -60,6 +86,9 @@ webhookRoutes.post('/:id/test', async (c) => {
   const [endpoint] = await db.select().from(webhookEndpoints)
     .where(eq(webhookEndpoints.id, c.req.param('id'))).limit(1);
   if (!endpoint) return c.json({ data: null, error: 'Not found' }, 404);
+  if (isInternalUrl(endpoint.url)) {
+    return c.json({ data: null, error: 'Cannot test internal URLs', code: 'FORBIDDEN' }, 403);
+  }
 
   const payload = { event: 'test', timestamp: new Date().toISOString(), source: 'embark' };
   let status = 'failed';

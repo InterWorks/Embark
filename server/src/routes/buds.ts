@@ -101,7 +101,7 @@ budRoutes.post('/:id/conversations/:convId/messages', async (c) => {
 
   const [row] = await db.update(budConversations)
     .set({
-      messages: sql`messages || ${JSON.stringify([newMessage])}::jsonb`,
+      messages: sql`${budConversations.messages} || ${JSON.stringify([newMessage])}::jsonb`,
       updatedAt: new Date(),
     })
     .where(and(
