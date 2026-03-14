@@ -76,6 +76,7 @@ export function TiptapEditor({ pageId, currentUser, onChange, editable = true, i
 
   useEffect(() => {
     if (!provider) return;
+    setIsOffline(false);
     const handleStatus = ({ status }: { status: string }) => {
       setIsOffline(status === 'disconnected');
     };
