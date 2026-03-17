@@ -27,8 +27,11 @@ const app = new Hono<AppEnv>();
 
 // ─── Global middleware ────────────────────────────────
 app.use('*', logger());
+const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
+  .split(',').map(o => o.trim()).filter(Boolean);
+
 app.use('*', cors({
-  origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  origin: (origin) => (allowedOrigins.includes(origin) ? origin : allowedOrigins[0]),
   credentials: true,
 }));
 
